@@ -1,0 +1,17 @@
+{
+  "name": "scholarship-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "mvp:cli": "node src/cli/runNoAccountMvpCli.js",
+    "debug:parse": "node src/cli/debugParseCli.js",
+    "scholarships:import": "node src/cli/importScholarshipsCli.js",
+    "api": "node src/api/server.js"
+  },
+  "dependencies": {
+    "pdf-parse": "^2.4.3",
+    "playwright": "^1.54.1"
+  }
+}

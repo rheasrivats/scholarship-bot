@@ -1,0 +1,8 @@
+node_modules/
+.venv/
+.venv311/
+__pycache__/
+*.pyc
+.DS_Store
+noe_uc_parse_output.txt
+data/_reset_backups/

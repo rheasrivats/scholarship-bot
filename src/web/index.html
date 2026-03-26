@@ -1,0 +1,1741 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scholarship Bot MVP</title>
+    <style>
+      :root {
+        --bg: #f7f5ef;
+        --card: #fffdf6;
+        --ink: #12212b;
+        --accent: #0d7a6d;
+        --line: #d8d1be;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at top right, #fff8dc 0%, var(--bg) 45%, #ece7da 100%);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 40px auto;
+        padding: 0 16px 48px;
+      }
+      .hero {
+        background: linear-gradient(135deg, #fffef9 0%, #f3ede0 100%);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(18, 33, 43, 0.06);
+      }
+      .hero-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+      .sub {
+        margin: 0;
+        color: #3a4b58;
+      }
+      .nav-link {
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-weight: 700;
+        color: #1f3b4e;
+        background: #e7eef2;
+        border: 1px solid #c7d6df;
+        white-space: nowrap;
+      }
+      .panel {
+        margin-top: 20px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 20px;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      input[type="text"], input[type="number"], input[type="file"], textarea {
+        width: 100%;
+        border: 1px solid #bfc9d0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        background: #fff;
+      }
+      textarea { min-height: 72px; resize: vertical; }
+      .grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+      .controls {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 11px 18px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary { background: var(--accent); color: #fff; }
+      .secondary { background: #ecf2f5; color: #224; }
+      .status {
+        margin-top: 10px;
+        min-height: 20px;
+        font-weight: 600;
+        color: #274e65;
+      }
+      .results {
+        margin-top: 20px;
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .card h3 {
+        margin: 0 0 10px;
+        font-size: 1.05rem;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 999px;
+        margin-right: 6px;
+        margin-bottom: 6px;
+        background: #edf5f3;
+        color: #0b5a52;
+      }
+      .mono {
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.86rem;
+        background: #0f1b24;
+        color: #d7e6f0;
+        border-radius: 10px;
+        padding: 12px;
+        overflow-x: auto;
+      }
+      .review-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+      .field { margin-bottom: 8px; }
+      .hint { color: #4f5e69; font-size: 0.9rem; }
+      details { border: 1px solid #e4dcc8; border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+      summary { cursor: pointer; font-weight: 600; }
+      .draft-form-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+      .draft-field {
+        border: 1px solid #d9e1e6;
+        border-radius: 10px;
+        padding: 10px;
+        background: #fcfdfd;
+      }
+      .draft-field label {
+        margin-bottom: 4px;
+        font-size: 0.88rem;
+        color: #3f5666;
+      }
+      .field-note {
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: #8c5b16;
+      }
+      .autofill-note {
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: #245f57;
+      }
+      .section-title {
+        margin: 10px 0 8px;
+        font-weight: 700;
+      }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .candidate {
+        border: 1px solid #d7e0e5;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+      }
+      .danger { background: #9a1c2f; color: #fff; }
+      .flags {
+        font-size: 0.82rem;
+        color: #7c3a1d;
+        margin: 6px 0;
+      }
+      .req {
+        margin: 8px 0;
+        font-size: 0.86rem;
+        color: #2f4554;
+      }
+      .req-list {
+        margin: 6px 0 8px 18px;
+        padding: 0;
+        color: #2f4554;
+        font-size: 0.84rem;
+      }
+      .req-list li {
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <div class="hero-top">
+          <div>
+            <h1>Scholarship Bot MVP</h1>
+            <p class="sub">Upload documents, review extracted data, apply edits, and generate no-account scholarship drafts.</p>
+          </div>
+          <a class="nav-link" href="#admin-unified">Jump To Discovery Queue</a>
+        </div>
+      </div>
+
+      <div class="panel" id="matching-panel">
+        <div class="grid">
+          <div>
+            <label for="sessionId">Session ID</label>
+            <input id="sessionId" type="text" placeholder="optional (auto-generated if blank)" />
+          </div>
+          <div>
+            <label for="maxDrafts">Max Drafts</label>
+            <input id="maxDrafts" type="number" min="1" max="20" value="5" />
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label for="docs">Documents (.pdf, .docx, .txt)</label>
+          <input id="docs" type="file" multiple accept=".pdf,.docx,.txt" />
+        </div>
+
+        <div class="controls">
+          <button class="primary" id="runBtn">Run Matching</button>
+          <button class="secondary" id="clearBtn" type="button">Clear Results</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <div class="panel" id="reviewPanel" style="display:none;">
+        <h3 style="margin-top:0;">Human Review Edits</h3>
+        <p class="hint">Update missing/incorrect fields and rerun matching. Your edits will be marked as <code>human_input</code>.</p>
+        <div class="review-grid">
+          <div class="field">
+            <label for="reviewName">Full Name</label>
+            <input id="reviewName" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewEmail">Email</label>
+            <input id="reviewEmail" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewPhone">Phone</label>
+            <input id="reviewPhone" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewMajor">Intended Major</label>
+            <input id="reviewMajor" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewEthnicity">Ethnicity/Background</label>
+            <input id="reviewEthnicity" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewGpa">GPA</label>
+            <input id="reviewGpa" type="text" placeholder="e.g. 3.72" />
+          </div>
+        </div>
+        <div class="controls">
+          <button class="primary" id="applyEditsBtn" type="button">Apply Edits & Rerun</button>
+        </div>
+      </div>
+
+      <div class="results" id="results"></div>
+
+      <div class="panel" id="admin-unified">
+        <h3 style="margin-top:0;">Agent Discovery + Candidate Queue</h3>
+        <p class="hint">Run AI-driven scholarship discovery and review candidates here on the same page.</p>
+        <div class="row">
+          <button class="secondary" id="refreshQueueBtn">Refresh Queue</button>
+        </div>
+        <div class="status" id="adminStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0;">Agent Discovery (Codex CLI)</h3>
+        <div class="row">
+          <label style="min-width:160px;">Student Age
+            <input id="agentStudentAge" type="number" min="10" max="100" value="18" />
+          </label>
+          <label style="min-width:180px;">Max Results
+            <input id="agentMaxResults" type="number" min="1" max="30" value="8" />
+          </label>
+          <label style="min-width:180px;">Query Budget
+            <input id="agentQueryBudget" type="number" min="1" max="20" value="6" />
+          </label>
+          <label style="min-width:200px;">Codex Timeout (sec)
+            <input id="agentCodexTimeoutSec" type="number" min="30" max="900" value="240" />
+          </label>
+        </div>
+        <div style="margin-top:8px;">
+          <label for="agentDocs">Student Documents (.pdf, .docx, .txt)</label>
+          <input id="agentDocs" type="file" multiple accept=".pdf,.docx,.txt" />
+        </div>
+        <div style="margin-top:8px;">
+          <label for="agentDomains">Domain Hints (comma-separated, optional)</label>
+          <input id="agentDomains" type="text" placeholder="scholarshipamerica.org, hsf.net, jkcf.org" />
+        </div>
+        <div class="controls">
+          <button class="primary" id="runAgentDiscoveryBtn">Run Agent Discovery</button>
+        </div>
+        <p class="hint" id="agentRunMeta">Agent discovery idle.</p>
+        <div class="mono" id="agentLog">No agent discovery run yet.</div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0;">Candidate Queue</h3>
+        <div id="queueMeta" class="hint">Loading...</div>
+        <div class="grid" id="queue"></div>
+      </div>
+    </div>
+
+    <script>
+      const statusEl = document.getElementById('status');
+      const resultsEl = document.getElementById('results');
+      const runBtn = document.getElementById('runBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const applyEditsBtn = document.getElementById('applyEditsBtn');
+      const reviewPanel = document.getElementById('reviewPanel');
+      const matchingPanelEl = document.getElementById('matching-panel');
+      const adminStatusEl = document.getElementById('adminStatus');
+      const adminUnifiedPanelEl = document.getElementById('admin-unified');
+      const queueEl = document.getElementById('queue');
+      const queueMetaEl = document.getElementById('queueMeta');
+      const refreshQueueBtnEl = document.getElementById('refreshQueueBtn');
+      const runAgentDiscoveryBtnEl = document.getElementById('runAgentDiscoveryBtn');
+      const agentRunMetaEl = document.getElementById('agentRunMeta');
+      const agentLogEl = document.getElementById('agentLog');
+      const agentDocsEl = document.getElementById('agentDocs');
+
+      let uploadedDocsPayload = null;
+      let agentUploadedDocsPayload = null;
+      let latestSessionId = null;
+      let latestMergedProfile = null;
+      let draftFieldEdits = {};
+      let draftFieldFiles = {};
+      let draftFieldRequirements = {};
+      let draftSubmissionState = {};
+      let draftGuidedSessions = {};
+      const labelOverrideStorageKey = 'scholarship_label_overrides_v1';
+      let draftLabelOverrides = {};
+      try {
+        draftLabelOverrides = JSON.parse(window.localStorage.getItem(labelOverrideStorageKey) || '{}');
+      } catch {
+        draftLabelOverrides = {};
+      }
+
+      const reviewInputs = {
+        fullName: document.getElementById('reviewName'),
+        email: document.getElementById('reviewEmail'),
+        phone: document.getElementById('reviewPhone'),
+        intendedMajor: document.getElementById('reviewMajor'),
+        ethnicity: document.getElementById('reviewEthnicity'),
+        gpa: document.getElementById('reviewGpa')
+      };
+
+      function setStatus(text, isError = false) {
+        statusEl.textContent = text;
+        statusEl.style.color = isError ? '#a11a2d' : '#274e65';
+      }
+
+      function setAdminStatus(text, isError = false) {
+        adminStatusEl.textContent = text;
+        adminStatusEl.style.color = isError ? '#a11a2d' : '#274e65';
+      }
+
+      function getLabelOverride(key) {
+        return String(draftLabelOverrides[key] || '').trim();
+      }
+
+      function setLabelOverride(key, value) {
+        const normalized = String(value || '').trim();
+        if (!normalized) {
+          delete draftLabelOverrides[key];
+        } else {
+          draftLabelOverrides[key] = normalized;
+        }
+        window.localStorage.setItem(labelOverrideStorageKey, JSON.stringify(draftLabelOverrides));
+      }
+
+      function escapeHtml(input) {
+        return String(input)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function toBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result;
+            const comma = dataUrl.indexOf(',');
+            resolve(dataUrl.slice(comma + 1));
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function fetchJson(url, opts = {}, timeoutMs = 0) {
+        let timeoutId = null;
+        let controller = null;
+        if (timeoutMs > 0 && typeof AbortController !== 'undefined') {
+          controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          opts = { ...opts, signal: controller.signal };
+        }
+
+        let res;
+        try {
+          res = await fetch(url, opts);
+        } catch (err) {
+          if (err?.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeoutMs}ms (${url})`);
+          }
+          throw err;
+        } finally {
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+
+        let data = {};
+        try {
+          data = await res.json();
+        } catch {
+          data = {};
+        }
+        if (!res.ok) throw new Error(data.error || `Request failed: ${url}`);
+        return data;
+      }
+
+      function populateReviewFields(profile) {
+        reviewInputs.fullName.value = profile?.personalInfo?.fullName || '';
+        reviewInputs.email.value = profile?.personalInfo?.email || '';
+        reviewInputs.phone.value = profile?.personalInfo?.phone || '';
+        reviewInputs.intendedMajor.value = profile?.personalInfo?.intendedMajor || '';
+        reviewInputs.ethnicity.value = profile?.personalInfo?.ethnicity || '';
+        reviewInputs.gpa.value = profile?.academics?.gpa || '';
+      }
+
+      function collectOverrides() {
+        return {
+          'personalInfo.fullName': reviewInputs.fullName.value,
+          'personalInfo.email': reviewInputs.email.value,
+          'personalInfo.phone': reviewInputs.phone.value,
+          'personalInfo.intendedMajor': reviewInputs.intendedMajor.value,
+          'personalInfo.ethnicity': reviewInputs.ethnicity.value,
+          'academics.gpa': reviewInputs.gpa.value
+        };
+      }
+
+      function renderListCard(title, items, renderer) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h3>${escapeHtml(title)}</h3>`;
+
+        if (!items || items.length === 0) {
+          card.innerHTML += '<div>None</div>';
+          return card;
+        }
+
+        const list = document.createElement('div');
+        items.forEach((item, index) => {
+          const row = document.createElement('div');
+          row.style.margin = index === items.length - 1 ? '0' : '0 0 8px';
+          row.innerHTML = renderer(item);
+          list.appendChild(row);
+        });
+
+        card.appendChild(list);
+        return card;
+      }
+
+      function renderProfileCard(profile, appliedOverrides) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const overrideCount = Object.keys(appliedOverrides || {}).length;
+        card.innerHTML = `
+          <h3>Extracted Profile</h3>
+          <div class="pill">Major: ${escapeHtml(profile?.personalInfo?.intendedMajor || 'missing')}</div>
+          <div class="pill">Ethnicity: ${escapeHtml(profile?.personalInfo?.ethnicity || 'missing')}</div>
+          <div class="pill">GPA: ${escapeHtml(profile?.academics?.gpa || 'missing')}</div>
+          <div class="pill">Human Edits Applied: ${overrideCount}</div>
+          <div style="margin-top:8px;">Name: ${escapeHtml(profile?.personalInfo?.fullName || 'missing')}</div>
+          <div>Email: ${escapeHtml(profile?.personalInfo?.email || 'missing')}</div>
+          <div>Phone: ${escapeHtml(profile?.personalInfo?.phone || 'missing')}</div>
+          <div>Essays parsed: ${escapeHtml(profile?.essays?.length || 0)}</div>
+        `;
+        return card;
+      }
+
+      function renderDraftsCard(drafts) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = '<h3>Autofill Drafts</h3><div class="hint">Flow: agent prefill -> human review -> human submit</div>';
+
+        if (!drafts || drafts.length === 0) {
+          card.innerHTML += '<div>None</div>';
+          return card;
+        }
+
+        drafts.forEach((draft) => {
+          const block = document.createElement('details');
+          block.innerHTML = `<summary>${escapeHtml(draft.scholarshipName)} (${escapeHtml(draft.sourceDomain)})</summary>`;
+
+          const keyPrefix = draft.scholarshipId || draft.scholarshipName;
+          if (!draftSubmissionState[keyPrefix]) {
+            draftSubmissionState[keyPrefix] = { submitted: false };
+          }
+          const submissionState = draftSubmissionState[keyPrefix];
+
+          const statusRow = document.createElement('div');
+          statusRow.style.marginTop = '8px';
+          block.appendChild(statusRow);
+
+          const mappingMetaEl = document.createElement('div');
+          mappingMetaEl.className = 'hint';
+          mappingMetaEl.style.marginTop = '6px';
+          const mapMeta = draft.formMappingMeta || {};
+          const mode = mapMeta.mode || 'unknown';
+          const mappedAt = mapMeta.updatedAt ? ` at ${mapMeta.updatedAt}` : '';
+          const fallbackInfo = mapMeta.fallbackReason ? ` | fallback: ${mapMeta.fallbackReason}` : '';
+          mappingMetaEl.textContent = `Mapping mode: ${mode}${mappedAt}${fallbackInfo}`;
+          block.appendChild(mappingMetaEl);
+
+          const warningEl = document.createElement('div');
+          warningEl.className = 'hint';
+          warningEl.style.marginTop = '6px';
+          block.appendChild(warningEl);
+
+          const isUploadField = (field) => {
+            const s = `${field?.fieldName || ""} ${field?.displayLabel || ""} ${field?.sourcePath || ""}`.toLowerCase();
+            return String(field?.fieldType || '').toLowerCase() === 'file' || /upload|attach|attachment|transcript|resume|choose file|drop files/.test(s);
+          };
+          const isInferredEligibilityField = (field) => {
+            const name = String(field?.fieldName || '').toLowerCase();
+            const label = String(field?.displayLabel || '').toLowerCase();
+            const source = String(field?.sourcePath || '').toLowerCase();
+            return (
+              /eligibility[_\s-]*confirmation/.test(name)
+              || /eligibility[_\s-]*confirmation/.test(label)
+              || source === '__manual__.eligibility_confirmation'
+            );
+          };
+          const inferRequiredDefault = (field) => {
+            if (typeof field?.required === 'boolean') {
+              return field.required ? 'required' : 'optional';
+            }
+            const s = `${field?.fieldName || ''} ${field?.displayLabel || ''} ${field?.sourcePath || ''}`.toLowerCase();
+            if (/address line 2|apt|suite|unit|apartment|middle name|secondary phone|upload|attach|attachment|transcript|resume/.test(s)) {
+              return 'optional';
+            }
+            return 'required';
+          };
+          const ensureRequirement = (manualKey, field) => {
+            if (!draftFieldRequirements[manualKey]) {
+              draftFieldRequirements[manualKey] = inferRequiredDefault(field);
+            }
+            return draftFieldRequirements[manualKey];
+          };
+          const isEssayField = (field) => {
+            if (isUploadField(field)) return false;
+            const s = `${field?.fieldName || ""} ${field?.displayLabel || ""} ${field?.sourcePath || ""}`.toLowerCase();
+            return (field?.sourcePath || "").startsWith("essays.") || /essay|personal statement|short answer|long answer/.test(s);
+          };
+          const essayAutofill = (draft.autofillFields || []).filter((f) => isEssayField(f));
+          const baseManual = (draft.manualFields || []).filter((f) => !isEssayField(f));
+          const hiddenInferredManual = baseManual.filter((f) => isInferredEligibilityField(f));
+          const visibleManual = baseManual.filter((f) => !isInferredEligibilityField(f));
+          const regularManual = visibleManual.filter((f) => !isUploadField(f));
+          const fileManual = visibleManual.filter((f) => isUploadField(f));
+          const essayManual = (draft.manualFields || []).filter((f) => isEssayField(f));
+          const isGenericFieldId = (value) => /^input[_-]?\d+(\.\d+)?$/i.test(String(value || '').trim());
+          const friendlyLabel = (field) => {
+            const fieldKey = `${keyPrefix}::label::${field.fieldName}`;
+            const override = getLabelOverride(fieldKey);
+            if (override) {
+              return override;
+            }
+
+            const raw = String(field.fieldName || '').trim();
+            const source = String(field.sourcePath || '').trim();
+            const mappedSemanticLabel = (() => {
+              if (source === 'personalInfo.fullName') return 'Full Name';
+              if (source === 'personalInfo.email') return 'Email';
+              if (source === 'personalInfo.phone') return 'Phone';
+              if (source === 'personalInfo.intendedMajor') return 'Intended Major';
+              if (source === 'personalInfo.ethnicity') return 'Ethnicity/Background';
+              if (source === 'personalInfo.dateOfBirth') return 'Date of Birth';
+              if (source === 'academics.gpa') return 'GPA';
+              if (source.startsWith('essays.')) return 'Essay Response';
+              return '';
+            })();
+            if (mappedSemanticLabel) {
+              return mappedSemanticLabel;
+            }
+
+            const displayLabel = String(field.displayLabel || '').trim();
+            if (displayLabel && !isGenericFieldId(displayLabel)) {
+              return displayLabel;
+            }
+
+            if (isGenericFieldId(raw)) return `Unlabeled Form Field (${raw})`;
+            return raw || 'Unknown Field';
+          };
+          // Autofill fields intentionally omitted from this review surface.
+          // We focus UI review on essays + manual fields; guided submission is the canonical full-page review.
+
+          const essayTitle = document.createElement('div');
+          essayTitle.className = 'section-title';
+          essayTitle.textContent = `Essay Responses (${essayAutofill.length + essayManual.length})`;
+          block.appendChild(essayTitle);
+
+          const essayGrid = document.createElement('div');
+          essayGrid.className = 'draft-form-grid';
+          essayGrid.style.gridTemplateColumns = '1fr';
+          const renderEssayField = (field, isManual) => {
+            const fieldWrap = document.createElement('div');
+            fieldWrap.className = 'draft-field';
+            const valueKey = isManual
+              ? `${keyPrefix}::manual::${field.fieldName}`
+              : `${keyPrefix}::${field.fieldName}`;
+            if (isManual) {
+              ensureRequirement(valueKey, field);
+            }
+            if (!(valueKey in draftFieldEdits)) {
+              draftFieldEdits[valueKey] = isManual ? '' : (field.value || '');
+            }
+            const draftEssayPrompt = Array.isArray(draft.essayPrompts) ? String(draft.essayPrompts[0] || '').trim() : '';
+            const display = field.essayPrompt || draftEssayPrompt || field.displayLabel || field.fieldName || 'Essay';
+            fieldWrap.innerHTML = `
+              <label>${escapeHtml(display)}</label>
+              <textarea style="min-height:220px;" placeholder="${isManual ? 'Enter essay response manually' : ''}">${escapeHtml(draftFieldEdits[valueKey])}</textarea>
+              <div class="hint" style="font-size:0.78rem;">Field ID: ${escapeHtml(field.fieldName || 'unknown')}</div>
+              <div class="${isManual ? 'field-note' : 'autofill-note'}">${escapeHtml(isManual ? (field.reason || 'Manual review required') : `Mapped from: ${field.sourcePath || 'profile'}`)}</div>
+              ${isManual ? `
+                <div style="margin-top:6px;">
+                  <label style="font-size:0.82rem;">Requiredness</label>
+                  <select data-role="requiredness" style="max-width:180px;">
+                    <option value="required" ${ensureRequirement(valueKey, field) === 'required' ? 'selected' : ''}>Required</option>
+                    <option value="optional" ${ensureRequirement(valueKey, field) === 'optional' ? 'selected' : ''}>Optional</option>
+                  </select>
+                </div>
+              ` : ''}
+              <div class="row" style="margin-top:8px;">
+                <button class="secondary" data-action="draft-essay" style="padding:8px 12px; font-size:0.85rem;">Draft With AI</button>
+                <span class="hint" data-role="essay-wordcount"></span>
+              </div>
+            `;
+            const ta = fieldWrap.querySelector('textarea');
+            ta.addEventListener('input', (e) => {
+              draftFieldEdits[valueKey] = e.target.value;
+              refreshDraftStatus();
+            });
+            const requiredSelect = fieldWrap.querySelector('[data-role="requiredness"]');
+            if (requiredSelect) {
+              requiredSelect.addEventListener('change', (e) => {
+                draftFieldRequirements[valueKey] = e.target.value === 'optional' ? 'optional' : 'required';
+                refreshDraftStatus();
+              });
+            }
+            const wordCountEl = fieldWrap.querySelector('[data-role="essay-wordcount"]');
+            fieldWrap.querySelector('[data-action="draft-essay"]').addEventListener('click', async (e) => {
+              e.preventDefault();
+              const btn = e.currentTarget;
+              const essayPrompt = display;
+              if (!essayPrompt || essayPrompt.length < 15) {
+                setStatus('Essay prompt missing or too short to draft from.', true);
+                return;
+              }
+              try {
+                btn.disabled = true;
+                btn.textContent = 'Drafting...';
+                setStatus(`Drafting essay for ${draft.scholarshipName}...`);
+                const result = await fetchJson('/admin/essay-draft', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    scholarshipName: draft.scholarshipName,
+                    prompt: essayPrompt,
+                    studentProfile: latestMergedProfile || {},
+                    timeoutMs: 150000
+                  })
+                }, 170000);
+                draftFieldEdits[valueKey] = result.essay || '';
+                ta.value = draftFieldEdits[valueKey];
+                const wc = Number(result.wordCount || 0);
+                const min = result.minWords ? `min ${result.minWords}` : '';
+                const max = result.maxWords ? `max ${result.maxWords}` : '';
+                wordCountEl.textContent = `Drafted ${wc} words${min || max ? ` (${[min, max].filter(Boolean).join(', ')})` : ''}`;
+                refreshDraftStatus();
+                setStatus(`Essay draft generated for ${draft.scholarshipName}.`);
+              } catch (err) {
+                setStatus(err.message || String(err), true);
+              } finally {
+                btn.disabled = false;
+                btn.textContent = 'Draft With AI';
+              }
+            });
+            essayGrid.appendChild(fieldWrap);
+          };
+          essayAutofill.forEach((field) => renderEssayField(field, false));
+          essayManual.forEach((field) => renderEssayField(field, true));
+          if (essayAutofill.length + essayManual.length === 0) {
+            essayGrid.innerHTML = '<div class="hint">No essay fields.</div>';
+          }
+          block.appendChild(essayGrid);
+
+          const manualTitle = document.createElement('div');
+          manualTitle.className = 'section-title';
+          manualTitle.textContent = `Manual Fields (${regularManual.length})`;
+          block.appendChild(manualTitle);
+
+          const manualGrid = document.createElement('div');
+          manualGrid.className = 'draft-form-grid';
+          regularManual.forEach((field) => {
+            const manualKey = `${keyPrefix}::manual::${field.fieldName}`;
+            ensureRequirement(manualKey, field);
+            if (!(manualKey in draftFieldEdits)) {
+              draftFieldEdits[manualKey] = '';
+            }
+            const fieldWrap = document.createElement('div');
+            fieldWrap.className = 'draft-field';
+            const prettyLabel = friendlyLabel(field);
+            const isFileField = isUploadField(field);
+            fieldWrap.innerHTML = `
+              <label>${escapeHtml(prettyLabel)}</label>
+              ${isFileField
+                ? `<div class="hint" style="padding:10px; background:#f2f6fb; border-radius:8px; border:1px solid #d9e4ef;">
+                    Upload required later during guided submission.
+                  </div>`
+                : `<input type="text" value="${escapeHtml(draftFieldEdits[manualKey])}" placeholder="Enter manually" />`
+              }
+              <div class="hint" style="font-size:0.78rem;">Field ID: ${escapeHtml(field.fieldName)}</div>
+              <div class="field-note">${escapeHtml(field.reason || 'Manual review required')}${field.maskedPreview ? ` (${escapeHtml(field.maskedPreview)})` : ''}</div>
+              ${isFileField && field.acceptedFileTypes ? `<div class="hint" style="font-size:0.78rem;">Accepted: ${escapeHtml(field.acceptedFileTypes)}</div>` : ''}
+              ${field.mappingReason ? `<div class="hint" style="font-size:0.78rem;">${escapeHtml(field.mappingReason)}</div>` : ''}
+              <div style="margin-top:6px; ${isFileField ? 'display:none;' : ''}">
+                <label style="font-size:0.82rem;">Requiredness</label>
+                <select data-role="requiredness" style="max-width:180px;">
+                  <option value="required" ${draftFieldRequirements[manualKey] === 'required' ? 'selected' : ''}>Required</option>
+                  <option value="optional" ${draftFieldRequirements[manualKey] === 'optional' ? 'selected' : ''}>Optional</option>
+                </select>
+              </div>
+              <button class="secondary" data-action="rename-label" style="margin-top:6px; padding:6px 10px; font-size:0.8rem;">Rename Label</button>
+            `;
+            const input = fieldWrap.querySelector('input');
+            if (!isFileField && input) {
+              input.addEventListener('input', (e) => {
+                draftFieldEdits[manualKey] = e.target.value;
+                refreshDraftStatus();
+              });
+            }
+            const requirednessEl = fieldWrap.querySelector('[data-role="requiredness"]');
+            if (requirednessEl) {
+              requirednessEl.addEventListener('change', (e) => {
+                draftFieldRequirements[manualKey] = e.target.value === 'optional' ? 'optional' : 'required';
+                refreshDraftStatus();
+              });
+            }
+            fieldWrap.querySelector('[data-action="rename-label"]').addEventListener('click', (e) => {
+              e.preventDefault();
+              const next = window.prompt(`Label for ${field.fieldName}`, prettyLabel);
+              if (next === null) return;
+              setLabelOverride(`${keyPrefix}::label::${field.fieldName}`, next);
+              fieldWrap.querySelector('label').textContent = next.trim() || prettyLabel;
+            });
+            manualGrid.appendChild(fieldWrap);
+          });
+          if (regularManual.length === 0) {
+            manualGrid.innerHTML = '<div class="hint">No manual fields.</div>';
+          }
+          block.appendChild(manualGrid);
+
+          const uploadsTitle = document.createElement('div');
+          uploadsTitle.className = 'section-title';
+          uploadsTitle.textContent = `File Uploads (${fileManual.length})`;
+          block.appendChild(uploadsTitle);
+
+          const uploadsGrid = document.createElement('div');
+          uploadsGrid.className = 'draft-form-grid';
+          fileManual.forEach((field) => {
+            const fieldWrap = document.createElement('div');
+            fieldWrap.className = 'draft-field';
+            const prettyLabel = friendlyLabel(field);
+            fieldWrap.innerHTML = `
+              <label>${escapeHtml(prettyLabel)}</label>
+              <div class="hint" style="padding:10px; background:#f2f6fb; border-radius:8px; border:1px solid #d9e4ef;">
+                Upload this file later during guided submission.
+              </div>
+              <div class="hint" style="font-size:0.78rem;">Field ID: ${escapeHtml(field.fieldName)}</div>
+              <div class="field-note">${escapeHtml(field.reason || 'File upload required by scholarship form')}</div>
+              ${field.acceptedFileTypes ? `<div class="hint" style="font-size:0.78rem;">Accepted: ${escapeHtml(field.acceptedFileTypes)}</div>` : ''}
+              ${field.mappingReason ? `<div class="hint" style="font-size:0.78rem;">${escapeHtml(field.mappingReason)}</div>` : ''}
+            `;
+            uploadsGrid.appendChild(fieldWrap);
+          });
+          if (fileManual.length === 0) {
+            uploadsGrid.innerHTML = '<div class="hint">No file uploads required.</div>';
+          }
+          block.appendChild(uploadsGrid);
+
+          if (hiddenInferredManual.length > 0) {
+            const hiddenHint = document.createElement('div');
+            hiddenHint.className = 'hint';
+            hiddenHint.style.marginTop = '8px';
+            hiddenHint.textContent = `Hidden inferred field(s): ${hiddenInferredManual.map((f) => f.displayLabel || f.fieldName).join(', ')} (not confirmed on application form).`;
+            block.appendChild(hiddenHint);
+          }
+
+          const actions = document.createElement('div');
+          actions.className = 'row';
+          actions.style.marginTop = '10px';
+          const hasKnownFields = ((draft.autofillFields || []).length + (draft.manualFields || []).length) > 0;
+          actions.innerHTML = `
+            ${draft.sourceUrl ? `<a class="secondary" style="text-decoration:none; display:inline-block; padding:11px 18px;" href="${escapeHtml(draft.sourceUrl)}" target="_blank" rel="noreferrer">Open Application Form</a>` : ''}
+            ${draft.sourceUrl
+              ? `<button type="button" class="secondary" data-action="generate-mapping">${hasKnownFields ? 'Regenerate Form Mapping' : 'Generate Form Mapping'}</button>`
+              : ''}
+            ${draft.sourceUrl
+              ? `<button type="button" class="secondary" data-action="start-guided-submit">Start Guided Submission</button>`
+              : ''}
+            <button type="button" class="secondary" data-action="mark-submitted">Mark Submitted</button>
+          `;
+          block.appendChild(actions);
+          const mappingStatusEl = document.createElement('div');
+          mappingStatusEl.className = 'hint';
+          mappingStatusEl.style.marginTop = '8px';
+          block.appendChild(mappingStatusEl);
+
+          const payloadBox = document.createElement('details');
+          payloadBox.style.marginTop = '10px';
+          payloadBox.innerHTML = '<summary>Submission Payload Preview</summary><div class="mono" style="margin-top:8px;"></div>';
+          block.appendChild(payloadBox);
+          const payloadMono = payloadBox.querySelector('.mono');
+
+          const guidedBox = document.createElement('details');
+          guidedBox.style.marginTop = '10px';
+          guidedBox.innerHTML = `
+            <summary>Guided Submission Session</summary>
+            <div class="hint" data-role="guided-status" style="margin-top:8px;">No active guided session.</div>
+            <div class="hint" data-role="guided-url" style="margin-top:6px;"></div>
+            <div data-role="guided-essay-tools" style="margin-top:8px;"></div>
+            <div class="mono" data-role="guided-fields" style="margin-top:8px; white-space:pre-wrap;">No page fields captured yet.</div>
+            <div class="row" style="margin-top:8px;">
+              <button type="button" class="secondary" data-action="guided-refill">Refill This Page</button>
+              <button type="button" class="secondary" data-action="guided-next">Approve This Page & Next</button>
+              <button type="button" class="secondary" data-action="guided-account-ready">Resume After Account Setup</button>
+              <button type="button" class="danger" data-action="guided-stop">Stop Session</button>
+            </div>
+          `;
+          block.appendChild(guidedBox);
+          const guidedStatusEl = guidedBox.querySelector('[data-role="guided-status"]');
+          const guidedUrlEl = guidedBox.querySelector('[data-role="guided-url"]');
+          const guidedEssayToolsEl = guidedBox.querySelector('[data-role="guided-essay-tools"]');
+          const guidedFieldsEl = guidedBox.querySelector('[data-role="guided-fields"]');
+          const guidedRefillBtn = guidedBox.querySelector('[data-action="guided-refill"]');
+          const guidedNextBtn = guidedBox.querySelector('[data-action="guided-next"]');
+          const guidedAccountReadyBtn = guidedBox.querySelector('[data-action="guided-account-ready"]');
+          const guidedStopBtn = guidedBox.querySelector('[data-action="guided-stop"]');
+          guidedRefillBtn.disabled = true;
+          guidedNextBtn.disabled = true;
+          guidedAccountReadyBtn.disabled = true;
+          guidedStopBtn.disabled = true;
+
+          function getRequiredMissingFields(limit = 999) {
+            return visibleManual.filter((field) => {
+              const manualKey = `${keyPrefix}::manual::${field.fieldName}`;
+              if (isUploadField(field)) {
+                return false;
+              }
+              const requirement = draftFieldRequirements[manualKey] || inferRequiredDefault(field);
+              if (requirement !== 'required') {
+                return false;
+              }
+              return !String(draftFieldEdits[manualKey] || '').trim();
+            }).slice(0, limit);
+          }
+
+          function getManualMissingCount() {
+            return getRequiredMissingFields().length;
+          }
+
+          function getManualMissingLabels(limit = 5) {
+            return getRequiredMissingFields(limit)
+              .map((field) => friendlyLabel(field))
+              .slice(0, limit);
+          }
+
+          function buildPayload() {
+            const payload = {};
+
+            const profile = latestMergedProfile || {};
+            const p = profile.personalInfo || {};
+            const a = profile.academics || {};
+            const essays = Array.isArray(profile.essays) ? profile.essays : [];
+            const firstEssay = essays.find((e) => String(e?.content || '').trim())?.content || '';
+
+            if (p.fullName) {
+              payload.full_name = String(p.fullName);
+              payload.fullName = String(p.fullName);
+              payload['personalInfo.fullName'] = String(p.fullName);
+            }
+            if (p.email) {
+              payload.email = String(p.email);
+              payload['personalInfo.email'] = String(p.email);
+            }
+            if (p.phone) {
+              payload.phone = String(p.phone);
+              payload['personalInfo.phone'] = String(p.phone);
+            }
+            if (p.dateOfBirth) {
+              payload.date_of_birth = String(p.dateOfBirth);
+              payload.dob = String(p.dateOfBirth);
+              payload['personalInfo.dateOfBirth'] = String(p.dateOfBirth);
+            }
+            if (p.addressLine1) {
+              payload.address_line_1 = String(p.addressLine1);
+              payload['personalInfo.addressLine1'] = String(p.addressLine1);
+            }
+            if (p.addressLine2) {
+              payload.address_line_2 = String(p.addressLine2);
+              payload['personalInfo.addressLine2'] = String(p.addressLine2);
+            }
+            if (p.city) {
+              payload.city = String(p.city);
+              payload['personalInfo.city'] = String(p.city);
+            }
+            if (p.state) {
+              payload.state = String(p.state);
+              payload['personalInfo.state'] = String(p.state);
+            }
+            if (p.postalCode) {
+              payload.postal_code = String(p.postalCode);
+              payload.zip = String(p.postalCode);
+              payload['personalInfo.postalCode'] = String(p.postalCode);
+            }
+            if (p.country) {
+              payload.country = String(p.country);
+              payload['personalInfo.country'] = String(p.country);
+            }
+            if (p.intendedMajor) {
+              payload.intended_major = String(p.intendedMajor);
+              payload['personalInfo.intendedMajor'] = String(p.intendedMajor);
+            }
+            if (p.ethnicity) {
+              payload.ethnicity = String(p.ethnicity);
+              payload['personalInfo.ethnicity'] = String(p.ethnicity);
+            }
+            if (a.gpa) {
+              payload.gpa = String(a.gpa);
+              payload['academics.gpa'] = String(a.gpa);
+            }
+            if (a.schoolName) {
+              payload.school_name = String(a.schoolName);
+              payload['academics.schoolName'] = String(a.schoolName);
+            }
+            if (firstEssay) {
+              payload.personal_statement = String(firstEssay);
+              payload.essay = String(firstEssay);
+            }
+
+            (draft.autofillFields || []).forEach((field) => {
+              const fieldKey = `${keyPrefix}::${field.fieldName}`;
+              const value = draftFieldEdits[fieldKey] ?? field.value ?? '';
+              payload[field.fieldName] = value;
+              if (field.sourcePath) {
+                payload[field.sourcePath] = value;
+              }
+              if (field.displayLabel) {
+                payload[field.displayLabel] = value;
+              }
+            });
+            visibleManual.forEach((field) => {
+              const manualKey = `${keyPrefix}::manual::${field.fieldName}`;
+              if (isUploadField(field)) {
+                payload[field.fieldName] = null;
+              } else {
+                const value = draftFieldEdits[manualKey] ?? '';
+                payload[field.fieldName] = value;
+                if (field.sourcePath) {
+                  payload[field.sourcePath] = value;
+                }
+                if (field.displayLabel) {
+                  payload[field.displayLabel] = value;
+                }
+              }
+            });
+            return payload;
+          }
+
+          function parseWordTargetFromPrompt(promptText) {
+            const prompt = String(promptText || '');
+            const range = prompt.match(/(\d{2,4})\s*[-to]{1,3}\s*(\d{2,4})\s*words?/i);
+            if (range) {
+              const min = Number(range[1]);
+              const max = Number(range[2]);
+              if (Number.isFinite(min) && Number.isFinite(max) && min <= max) {
+                return { min, max, target: Math.round((min + max) / 2) };
+              }
+            }
+            const minimum = prompt.match(/(?:minimum|min\.?)\s*(\d{2,4})\s*words?/i) || prompt.match(/at least\s*(\d{2,4})\s*words?/i);
+            if (minimum) {
+              const min = Number(minimum[1]);
+              if (Number.isFinite(min)) {
+                return { min, max: null, target: min };
+              }
+            }
+            const maxOnly = prompt.match(/(?:maximum|max\.?|up to)\s*(\d{2,4})\s*words?/i);
+            if (maxOnly) {
+              const max = Number(maxOnly[1]);
+              if (Number.isFinite(max)) {
+                return { min: null, max, target: Math.min(max, 400) };
+              }
+            }
+            return { min: null, max: null, target: null };
+          }
+
+          function isLikelyEssayField(field) {
+            const type = String(field?.type || '').toLowerCase();
+            const label = String(field?.label || '').toLowerCase();
+            if (type === 'textarea') return true;
+            return /(essay|statement|short answer|long answer|minimum words?|impact|mission|describe)/.test(label);
+          }
+
+          function buildGuidedEssayTools(state) {
+            const fields = Array.isArray(state?.fields) ? state.fields : [];
+            const essayFields = fields.filter((field) => isLikelyEssayField(field));
+            if (essayFields.length === 0) {
+              guidedEssayToolsEl.innerHTML = '<div class="hint">No essay prompts detected on this page yet.</div>';
+              return;
+            }
+
+            const cards = essayFields.map((field, index) => {
+              const prompt = String(field.label || field.name || field.id || `Essay ${index + 1}`).trim();
+              const wordTarget = parseWordTargetFromPrompt(prompt);
+              const targetHint = wordTarget.target ? `target ${wordTarget.target} words` : 'no explicit word target found';
+              return `
+                <div class="draft-field" style="margin-top:8px;">
+                  <label>${escapeHtml(prompt)}</label>
+                  <div class="hint" style="font-size:0.78rem;">
+                    Field ID: ${escapeHtml(field.id || 'unknown')} | Name: ${escapeHtml(field.name || 'unknown')} | ${escapeHtml(targetHint)}
+                  </div>
+                  <div class="row" style="margin-top:8px;">
+                    <button type="button" class="secondary" data-action="guided-draft-fill" data-essay-index="${index}" style="padding:8px 12px; font-size:0.85rem;">
+                      Draft + Fill
+                    </button>
+                    <span class="hint" data-role="guided-draft-status" data-essay-index="${index}"></span>
+                  </div>
+                </div>
+              `;
+            }).join('');
+
+            guidedEssayToolsEl.innerHTML = `
+              <details open>
+                <summary>Essay Drafting On Current Page (${essayFields.length})</summary>
+                ${cards}
+              </details>
+            `;
+
+            guidedEssayToolsEl.querySelectorAll('[data-action="guided-draft-fill"]').forEach((btn) => {
+              btn.addEventListener('click', async (event) => {
+                const sessionId = draftGuidedSessions[keyPrefix];
+                if (!sessionId) {
+                  setStatus('No active guided session for this draft.', true);
+                  return;
+                }
+
+                const idx = Number(event.currentTarget.getAttribute('data-essay-index'));
+                const field = essayFields[idx];
+                const statusNode = guidedEssayToolsEl.querySelector(`[data-role="guided-draft-status"][data-essay-index="${idx}"]`);
+                const prompt = String(field?.label || '').trim();
+                if (!prompt) {
+                  setStatus('Essay prompt missing for this field.', true);
+                  return;
+                }
+
+                try {
+                  event.currentTarget.disabled = true;
+                  event.currentTarget.textContent = 'Drafting...';
+                  if (statusNode) statusNode.textContent = 'Generating draft...';
+
+                  const draftResult = await fetchJson('/admin/essay-draft', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                      scholarshipName: draft.scholarshipName,
+                      prompt,
+                      studentProfile: latestMergedProfile || {},
+                      timeoutMs: 150000
+                    })
+                  }, 170000);
+
+                  const essayText = String(draftResult.essay || '').trim();
+                  if (!essayText) {
+                    throw new Error('AI draft came back empty');
+                  }
+
+                  const updates = {};
+                  if (field.name) updates[field.name] = essayText;
+                  if (field.id) updates[field.id] = essayText;
+                  if (field.label) updates[field.label] = essayText;
+
+                  const refillResult = await fetchJson('/admin/submission/upsert-payload', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({
+                      sessionId,
+                      updates,
+                      refill: true
+                    })
+                  }, 120000);
+
+                  renderGuidedState(refillResult);
+                  const wc = Number(draftResult.wordCount || 0);
+                  if (statusNode) statusNode.textContent = `Filled (${wc} words)`;
+                  setStatus(`Drafted and filled essay on current page for ${draft.scholarshipName}.`);
+                } catch (err) {
+                  if (statusNode) statusNode.textContent = `Failed: ${err.message || String(err)}`;
+                  setStatus(err.message || String(err), true);
+                } finally {
+                  event.currentTarget.disabled = false;
+                  event.currentTarget.textContent = 'Draft + Fill';
+                }
+              });
+            });
+          }
+
+          function renderGuidedState(state) {
+            if (!state || !state.sessionId) {
+              guidedStatusEl.textContent = 'No active guided session.';
+              guidedUrlEl.textContent = '';
+              guidedEssayToolsEl.innerHTML = '';
+              guidedFieldsEl.textContent = 'No page fields captured yet.';
+              guidedRefillBtn.disabled = true;
+              guidedNextBtn.disabled = true;
+              guidedAccountReadyBtn.disabled = true;
+              guidedStopBtn.disabled = true;
+              return;
+            }
+            draftGuidedSessions[keyPrefix] = state.sessionId;
+            const pageCount = Array.isArray(state.fields) ? state.fields.length : 0;
+            const accountBadge = state.accountRequired ? ' [Account Setup Needed]' : '';
+            guidedStatusEl.textContent = `Step ${state.stepNumber}${accountBadge}: ${state.reviewMessage || 'Review page and continue.'} (captured ${pageCount} fields)`;
+            guidedUrlEl.textContent = `Current URL: ${state.currentUrl || 'unknown'}`;
+            buildGuidedEssayTools(state);
+            guidedFieldsEl.textContent = JSON.stringify(state.fields || [], null, 2);
+            guidedRefillBtn.disabled = false;
+            guidedNextBtn.disabled = !state.canAdvance;
+            guidedAccountReadyBtn.disabled = false;
+            guidedStopBtn.disabled = false;
+          }
+
+          function refreshDraftStatus() {
+            const manualMissing = getManualMissingCount();
+            const uploadLaterCount = fileManual.length;
+            const knownFields = (draft.autofillFields || []).length + (draft.manualFields || []).length;
+            const readyForGuided = manualMissing === 0;
+            statusRow.innerHTML = `
+              <span class="pill">Autofilled: ${(draft.autofillFields || []).length}</span>
+              <span class="pill">Manual Fields: ${regularManual.length}</span>
+              <span class="pill">Required Missing: ${manualMissing}</span>
+              <span class="pill">Uploads Later: ${uploadLaterCount}</span>
+              <span class="pill">${draft.requiresAccount ? 'Account required' : 'No account required'}</span>
+              <span class="pill">${readyForGuided ? 'Ready for guided submission' : 'Needs mapping/review'}</span>
+              <span class="pill">${submissionState.submitted ? 'Submitted' : 'Not submitted'}</span>
+            `;
+
+            if (knownFields === 0) {
+              warningEl.textContent = 'No pre-mapped fields yet. Guided submission will capture live fields in-browser.';
+              warningEl.style.color = '#245f57';
+            } else if (manualMissing > 0) {
+              warningEl.textContent = `Please fill ${manualMissing} required field(s) before submission approval. Optional fields can be left blank.`;
+              warningEl.style.color = '#8c5b16';
+            } else if (!submissionState.submitted) {
+              warningEl.textContent = 'All required text fields entered. File uploads will be completed in guided submission.';
+              warningEl.style.color = '#245f57';
+            } else {
+              warningEl.textContent = 'Submission marked complete.';
+              warningEl.style.color = '#245f57';
+            }
+
+            payloadMono.textContent = JSON.stringify(buildPayload(), null, 2);
+          }
+
+          actions.querySelector('[data-action="mark-submitted"]').addEventListener('click', () => {
+            submissionState.submitted = true;
+            const message = `${draft.scholarshipName} marked as submitted.`;
+            setStatus(message);
+            mappingStatusEl.textContent = message;
+            refreshDraftStatus();
+          });
+
+          const generateBtn = actions.querySelector('[data-action="generate-mapping"]');
+          if (generateBtn) {
+            const runGenerateMapping = async (isAuto = false) => {
+              try {
+                generateBtn.disabled = true;
+                generateBtn.textContent = isAuto ? 'Auto-generating...' : 'Generating...';
+                mappingStatusEl.textContent = isAuto
+                  ? 'Auto-generating form mapping (first run)...'
+                  : 'Generating form mapping...';
+                setStatus(`${isAuto ? 'Auto-generating' : 'Generating'} form mapping for ${draft.scholarshipName}...`);
+                const result = await fetchJson('/admin/scholarships/generate-form-mapping', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    scholarshipId: draft.scholarshipId,
+                    timeoutMs: 25000,
+                    codexTimeoutMs: 180000,
+                    maxSteps: 4
+                  })
+                }, 240000);
+                mappingStatusEl.textContent = `Mapped ${result.discoveredCount || 0} field(s) via ${result.mappingMode || 'agent'}. Refreshing draft...`;
+                setStatus(result.message || `${isAuto ? 'Auto-generated' : 'Generated'} form mapping for ${draft.scholarshipName}. Rerunning matching...`);
+                if (result.fallbackReason) {
+                  mappingStatusEl.textContent += ` (fallback notes: ${result.fallbackReason})`;
+                }
+                await applyEditsAndRerun();
+              } catch (err) {
+                mappingStatusEl.textContent = `Mapping failed: ${err.message || String(err)}`;
+                setStatus(err.message || String(err), true);
+              } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = hasKnownFields ? 'Regenerate Form Mapping' : 'Generate Form Mapping';
+              }
+            };
+
+            generateBtn.addEventListener('click', async () => {
+              await runGenerateMapping(false);
+            });
+          }
+
+          const startGuidedBtn = actions.querySelector('[data-action="start-guided-submit"]');
+          if (startGuidedBtn) {
+            startGuidedBtn.addEventListener('click', async () => {
+              try {
+                const manualMissing = getManualMissingCount();
+                if (manualMissing > 0) {
+                  const missingLabels = getManualMissingLabels();
+                  const suffix = missingLabels.length > 0 ? ` Missing: ${missingLabels.join(', ')}` : '';
+                  throw new Error(`Cannot start guided submission: ${manualMissing} required field(s) still empty.${suffix}`);
+                }
+                startGuidedBtn.disabled = true;
+                startGuidedBtn.textContent = 'Launching...';
+                setStatus(`Starting guided submission for ${draft.scholarshipName}...`);
+                const result = await fetchJson('/admin/submission/start', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    sourceUrl: draft.sourceUrl,
+                    payload: buildPayload()
+                  })
+                }, 120000);
+                renderGuidedState(result);
+                guidedBox.open = true;
+                if (result.accountRequired) {
+                  setStatus(`Guided submission started for ${draft.scholarshipName}. Complete account setup/login in browser, then click "Resume After Account Setup".`);
+                } else {
+                  setStatus(`Guided submission started for ${draft.scholarshipName}. Review browser page, then click "Approve This Page & Next".`);
+                }
+              } catch (err) {
+                setStatus(err.message || String(err), true);
+              } finally {
+                startGuidedBtn.disabled = false;
+                startGuidedBtn.textContent = 'Start Guided Submission';
+              }
+            });
+          }
+
+          guidedNextBtn.addEventListener('click', async () => {
+            const sessionId = draftGuidedSessions[keyPrefix];
+            if (!sessionId) {
+              setStatus('No active guided session for this draft.', true);
+              return;
+            }
+            try {
+              guidedNextBtn.disabled = true;
+              guidedNextBtn.textContent = 'Advancing...';
+              const result = await fetchJson('/admin/submission/next', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+              }, 120000);
+              renderGuidedState(result);
+              if (result.accountRequired) {
+                setStatus('Account setup/login detected. Complete it in browser, then click Resume After Account Setup.');
+              } else if (!result.canAdvance) {
+                setStatus('Reached final/manual step. Complete submit in browser, then click Mark Submitted.', false);
+              }
+            } catch (err) {
+              setStatus(err.message || String(err), true);
+            } finally {
+              guidedNextBtn.textContent = 'Approve This Page & Next';
+            }
+          });
+
+          guidedRefillBtn.addEventListener('click', async () => {
+            const sessionId = draftGuidedSessions[keyPrefix];
+            if (!sessionId) {
+              setStatus('No active guided session for this draft.', true);
+              return;
+            }
+            try {
+              guidedRefillBtn.disabled = true;
+              guidedRefillBtn.textContent = 'Refilling...';
+              const result = await fetchJson('/admin/submission/refill', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+              }, 120000);
+              renderGuidedState(result);
+              if (result.accountRequired) {
+                setStatus('Account setup/login still required. Complete it in browser, then click Resume After Account Setup.');
+              } else {
+                setStatus(`Refilled current page for ${draft.scholarshipName}.`);
+              }
+            } catch (err) {
+              setStatus(err.message || String(err), true);
+            } finally {
+              guidedRefillBtn.textContent = 'Refill This Page';
+            }
+          });
+
+          guidedAccountReadyBtn.addEventListener('click', async () => {
+            const sessionId = draftGuidedSessions[keyPrefix];
+            if (!sessionId) {
+              setStatus('No active guided session for this draft.', true);
+              return;
+            }
+            try {
+              guidedAccountReadyBtn.disabled = true;
+              guidedAccountReadyBtn.textContent = 'Resuming...';
+              const result = await fetchJson('/admin/submission/account-ready', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+              }, 120000);
+              renderGuidedState(result);
+              if (result.accountRequired) {
+                setStatus('Still on account/login setup. Finish it in browser, then click Resume After Account Setup again.');
+              } else {
+                setStatus(`Resumed guided submission for ${draft.scholarshipName}.`);
+              }
+            } catch (err) {
+              setStatus(err.message || String(err), true);
+            } finally {
+              guidedAccountReadyBtn.textContent = 'Resume After Account Setup';
+            }
+          });
+
+          guidedStopBtn.addEventListener('click', async () => {
+            const sessionId = draftGuidedSessions[keyPrefix];
+            if (!sessionId) return;
+            try {
+              await fetchJson('/admin/submission/stop', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+              }, 30000);
+              delete draftGuidedSessions[keyPrefix];
+              renderGuidedState(null);
+              setStatus(`Guided session stopped for ${draft.scholarshipName}.`);
+            } catch (err) {
+              setStatus(err.message || String(err), true);
+            }
+          });
+
+          refreshDraftStatus();
+          card.appendChild(block);
+        });
+
+        return card;
+      }
+
+      function renderQueueCandidate(candidate) {
+        const card = document.createElement('div');
+        card.className = 'candidate';
+
+        const flags = (candidate.riskFlags || []).join(', ') || 'none';
+        const reqMajors = candidate.inferredRequirements?.requiredMajors || candidate.eligibility?.allowedMajors || [];
+        const reqEthnicities = candidate.inferredRequirements?.requiredEthnicities || candidate.eligibility?.allowedEthnicities || [];
+        const reqStates = candidate.inferredRequirements?.requiredStates || [];
+        const reqMinAge = candidate.inferredRequirements?.minAge;
+        const reqMaxAge = candidate.inferredRequirements?.maxAge;
+        const reqStatements = candidate.inferredRequirements?.requirementStatements || [];
+        const reqGpa = candidate.eligibility?.minGpa;
+        const reqAge = (reqMinAge !== null && reqMinAge !== undefined) || (reqMaxAge !== null && reqMaxAge !== undefined)
+          ? `Age: ${reqMinAge ?? "?"}-${reqMaxAge ?? "?"}`
+          : '';
+        const reqSummary = [
+          reqMajors.length ? `Major: ${reqMajors.join(', ')}` : '',
+          reqEthnicities.length ? `Ethnicity/Background: ${reqEthnicities.join(', ')}` : '',
+          reqStates.length ? `State: ${reqStates.join(', ')}` : '',
+          reqAge,
+          (reqGpa !== null && reqGpa !== undefined && reqGpa !== '') ? `Min GPA: ${reqGpa}` : ''
+        ].filter(Boolean).join(' | ') || 'No explicit requirements detected';
+        const reqStatementMarkup = reqStatements.length
+          ? `<ul class="req-list">${reqStatements.slice(0, 6).map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`
+          : '';
+
+        card.innerHTML = `
+          <h3>${escapeHtml(candidate.name)}</h3>
+          <div class="pill">Status: ${escapeHtml(candidate.status)}</div>
+          <div class="pill">Risk: ${escapeHtml(candidate.riskScore)}</div>
+          <div class="pill">Recommended: ${escapeHtml(candidate.recommendedTier)}</div>
+          <div><strong>Domain:</strong> ${escapeHtml(candidate.sourceDomain)}</div>
+          <div><strong>URL:</strong> <a href="${escapeHtml(candidate.sourceUrl || '#')}" target="_blank" rel="noreferrer">${escapeHtml(candidate.sourceUrl || 'missing')}</a></div>
+          <div><strong>Award:</strong> $${Number(candidate.awardAmount || 0).toLocaleString()}</div>
+          <div><strong>Deadline:</strong> ${escapeHtml(candidate.deadline || 'missing')}</div>
+          <div class="req"><strong>Requirements:</strong> ${escapeHtml(reqSummary)}</div>
+          ${reqStatementMarkup}
+          <div class="flags"><strong>Flags:</strong> ${escapeHtml(flags)}</div>
+          <div style="margin-top:8px;">
+            <label>Reviewer</label>
+            <input type="text" data-role="reviewer" placeholder="your name" />
+          </div>
+          <div style="margin-top:8px;">
+            <label>Tier Override</label>
+            <select data-role="tierOverride">
+              <option value="">Use Recommended</option>
+              <option value="Tier 1">Tier 1</option>
+              <option value="Tier 2">Tier 2</option>
+              <option value="Tier 3">Tier 3</option>
+            </select>
+          </div>
+          <div style="margin-top:8px;">
+            <label>Review Notes</label>
+            <textarea data-role="notes" placeholder="why approved/rejected"></textarea>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="primary" data-action="approve">Approve</button>
+            <button class="danger" data-action="reject">Reject</button>
+          </div>
+        `;
+
+        async function submit(decision) {
+          const reviewer = card.querySelector('[data-role="reviewer"]').value;
+          const notes = card.querySelector('[data-role="notes"]').value;
+          const tierOverride = card.querySelector('[data-role="tierOverride"]').value;
+
+          try {
+            setAdminStatus(`Submitting ${decision} for ${candidate.id}...`);
+            await fetchJson('/admin/candidates/review', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                id: candidate.id,
+                decision,
+                reviewer,
+                notes,
+                tierOverride
+              })
+            });
+            setAdminStatus(`Saved ${decision} for ${candidate.id}`);
+            await loadCandidateQueue();
+          } catch (err) {
+            setAdminStatus(err.message || String(err), true);
+          }
+        }
+
+        card.querySelector('[data-action="approve"]').addEventListener('click', () => submit('approve'));
+        card.querySelector('[data-action="reject"]').addEventListener('click', () => submit('reject'));
+
+        return card;
+      }
+
+      async function loadCandidateQueue() {
+        const data = await fetchJson('/admin/candidates');
+        const allCandidates = data.candidates || [];
+        const hiddenRejected = allCandidates.filter((c) => c.status === 'rejected').length;
+        const candidates = allCandidates.filter((c) => c.status !== 'rejected');
+
+        queueMetaEl.textContent = `${candidates.length} visible candidates (${hiddenRejected} rejected hidden). Source file: ${data.sourceFile}`;
+        queueEl.innerHTML = '';
+
+        if (candidates.length === 0) {
+          queueEl.innerHTML = '<div class="hint">No candidates yet.</div>';
+          return;
+        }
+
+        const sorted = [...candidates].sort((a, b) => {
+          const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+          const diff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+          if (diff !== 0) return diff;
+          return (b.riskScore || 0) - (a.riskScore || 0);
+        });
+
+        sorted.forEach((candidate) => {
+          queueEl.appendChild(renderQueueCandidate(candidate));
+        });
+      }
+
+      async function runAgentDiscovery() {
+        let timer = null;
+        try {
+          const files = Array.from(agentDocsEl.files || []);
+          if (files.length === 0) {
+            throw new Error('Upload at least one student document for agent discovery.');
+          }
+
+          const studentAge = Number(document.getElementById('agentStudentAge').value || 18);
+          const discoveryMaxResults = Number(document.getElementById('agentMaxResults').value || 8);
+          const discoveryQueryBudget = Number(document.getElementById('agentQueryBudget').value || 6);
+          const codexTimeoutSec = Number(document.getElementById('agentCodexTimeoutSec').value || 240);
+          const domainRaw = document.getElementById('agentDomains').value || '';
+          const discoveryDomains = domainRaw
+            .split(',')
+            .map((d) => d.trim())
+            .filter(Boolean);
+
+          const documents = await Promise.all(files.map(async (file, idx) => ({
+            documentId: `agent-doc-${idx + 1}`,
+            fileName: file.name,
+            contentBase64: await toBase64(file)
+          })));
+          agentUploadedDocsPayload = documents;
+
+          const startedAt = Date.now();
+          runAgentDiscoveryBtnEl.disabled = true;
+          runAgentDiscoveryBtnEl.textContent = 'Running Agent Discovery...';
+          agentRunMetaEl.textContent = 'Agent discovery started.';
+          agentLogEl.textContent = 'Running agent discovery workflow...';
+          setAdminStatus('Running agent discovery...');
+
+          timer = setInterval(() => {
+            const sec = Math.floor((Date.now() - startedAt) / 1000);
+            agentRunMetaEl.textContent = `Agent discovery running for ${sec}s...`;
+          }, 1000);
+
+          const result = await fetchJson('/admin/agent-discovery', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              documents,
+              studentAge,
+              discoveryMaxResults,
+              discoveryQueryBudget,
+              discoveryDomains,
+              codexTimeoutSec
+            })
+          }, 12 * 60 * 1000);
+
+          if (timer) clearInterval(timer);
+          setAdminStatus(result.message || 'Agent discovery completed.');
+          agentRunMetaEl.textContent = 'Agent discovery completed.';
+
+          const summary = result.summary || {};
+          const counts = summary.counts || {};
+          agentLogEl.textContent = [
+            `Feature: ${summary.featureId || 'n/a'}`,
+            `Student: major=${summary.student?.major || 'missing'} | ethnicity=${summary.student?.ethnicity || 'missing'} | state=${summary.student?.state || 'missing'} | age=${summary.student?.age || 'missing'}`,
+            `Counts: discovered=${counts.discoveredCandidates || 0}, shortlisted=${counts.shortlistedCandidates || 0}, approved=${counts.approvedIds || 0}, autofillPlans=${counts.autofillPlans || 0}`,
+            '',
+            'Shortlist Preview:',
+            ...(summary.shortlistPreview || []).map((s) => `- ${s.name || s.id} | $${Number(s.awardAmount || 0).toLocaleString()} | ${s.deadline || 'no deadline'} | ${s.sourceDomain || ''}`),
+            '',
+            'Runner stdout (tail):',
+            result.stdoutTail || '(empty)',
+            '',
+            'Runner stderr (tail):',
+            result.stderrTail || '(empty)'
+          ].join('\n');
+
+          await loadCandidateQueue();
+        } catch (err) {
+          if (timer) clearInterval(timer);
+          agentRunMetaEl.textContent = 'Agent discovery failed.';
+          agentLogEl.textContent = `Error:\n${err.message || String(err)}`;
+          setAdminStatus(err.message || String(err), true);
+        } finally {
+          runAgentDiscoveryBtnEl.disabled = false;
+          runAgentDiscoveryBtnEl.textContent = 'Run Agent Discovery';
+        }
+      }
+
+      async function runWithPayload(payload, message) {
+        setStatus(message);
+        runBtn.disabled = true;
+        applyEditsBtn.disabled = true;
+
+        try {
+          const response = await fetch('/run-no-account-mvp-upload', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Request failed');
+          }
+
+          latestSessionId = data.sessionId;
+          latestMergedProfile = data.mergedProfile || null;
+          populateReviewFields(data.mergedProfile);
+          reviewPanel.style.display = 'block';
+
+          resultsEl.innerHTML = '';
+          resultsEl.appendChild(renderProfileCard(data.mergedProfile, data.appliedOverrides));
+          resultsEl.appendChild(renderListCard(
+            'Top Scholarships',
+            data.rankedScholarships,
+            (s) => `${escapeHtml(s.name)} - <strong>$${Number(s.awardAmount).toLocaleString()}</strong> (fit: ${escapeHtml(s.profileFitScore)}, essay: ${escapeHtml(s.essaySimilarityScore)})`
+          ));
+          resultsEl.appendChild(renderDraftsCard(data.drafts));
+          resultsEl.appendChild(renderListCard(
+            'Excluded',
+            data.excludedScholarships,
+            (s) => `<strong>${escapeHtml(s.scholarshipId)}</strong>: ${escapeHtml(s.reason)}`
+          ));
+
+          const rawCard = document.createElement('div');
+          rawCard.className = 'card';
+          rawCard.innerHTML = '<h3>Raw JSON Result</h3><div class="mono"></div>';
+          rawCard.querySelector('.mono').textContent = JSON.stringify(data, null, 2);
+          resultsEl.appendChild(rawCard);
+
+          setStatus('Completed. You can edit fields in Human Review and rerun.');
+        } catch (err) {
+          setStatus(err.message || String(err), true);
+        } finally {
+          runBtn.disabled = false;
+          applyEditsBtn.disabled = false;
+        }
+      }
+
+      async function runInitial() {
+        const files = document.getElementById('docs').files;
+        const sessionIdInput = document.getElementById('sessionId').value.trim();
+        const maxDrafts = Number(document.getElementById('maxDrafts').value || 5);
+
+        if (!files || files.length === 0) {
+          if (agentUploadedDocsPayload && agentUploadedDocsPayload.length > 0) {
+            uploadedDocsPayload = agentUploadedDocsPayload;
+            const fallbackPayload = {
+              sessionId: sessionIdInput || undefined,
+              maxDrafts,
+              documents: uploadedDocsPayload,
+              overrides: {}
+            };
+            await runWithPayload(fallbackPayload, 'Using previously uploaded discovery documents for matching...');
+            return;
+          }
+
+          setStatus('Please select at least one document.', true);
+          return;
+        }
+
+        setStatus('Reading files...');
+        const docs = [];
+        for (const file of files) {
+          const contentBase64 = await toBase64(file);
+          docs.push({
+            documentId: file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_'),
+            fileName: file.name,
+            contentBase64
+          });
+        }
+
+        uploadedDocsPayload = docs;
+        const payload = {
+          sessionId: sessionIdInput || undefined,
+          maxDrafts,
+          documents: docs,
+          overrides: {}
+        };
+
+        await runWithPayload(payload, 'Running scholarship matching...');
+      }
+
+      async function applyEditsAndRerun() {
+        if (!uploadedDocsPayload || uploadedDocsPayload.length === 0) {
+          setStatus('Please upload and run matching once before applying edits.', true);
+          return;
+        }
+
+        const maxDrafts = Number(document.getElementById('maxDrafts').value || 5);
+        const payload = {
+          sessionId: latestSessionId || document.getElementById('sessionId').value.trim() || undefined,
+          maxDrafts,
+          documents: uploadedDocsPayload,
+          overrides: collectOverrides()
+        };
+
+        await runWithPayload(payload, 'Applying human edits and rerunning matching...');
+      }
+
+      if (matchingPanelEl && adminUnifiedPanelEl) {
+        const wrapEl = document.querySelector('.wrap');
+        const discoveryConfigPanelEl = adminUnifiedPanelEl.nextElementSibling;
+        const queuePanelEl = discoveryConfigPanelEl ? discoveryConfigPanelEl.nextElementSibling : null;
+        if (wrapEl && discoveryConfigPanelEl && queuePanelEl) {
+          wrapEl.insertBefore(adminUnifiedPanelEl, matchingPanelEl);
+          wrapEl.insertBefore(discoveryConfigPanelEl, matchingPanelEl);
+          wrapEl.insertBefore(queuePanelEl, matchingPanelEl);
+        }
+      }
+
+      runBtn.addEventListener('click', runInitial);
+      applyEditsBtn.addEventListener('click', applyEditsAndRerun);
+      runAgentDiscoveryBtnEl.addEventListener('click', runAgentDiscovery);
+      refreshQueueBtnEl.addEventListener('click', () => loadCandidateQueue().catch((e) => setAdminStatus(e.message || String(e), true)));
+      clearBtn.addEventListener('click', () => {
+        uploadedDocsPayload = null;
+        latestSessionId = null;
+        latestMergedProfile = null;
+        draftFieldEdits = {};
+        draftFieldFiles = {};
+        draftFieldRequirements = {};
+        draftSubmissionState = {};
+        draftGuidedSessions = {};
+        reviewPanel.style.display = 'none';
+        resultsEl.innerHTML = '';
+        setStatus('');
+      });
+
+      loadCandidateQueue()
+        .then(() => setAdminStatus('Candidate queue ready.'))
+        .catch((err) => setAdminStatus(err.message || String(err), true));
+    </script>
+  </body>
+</html>

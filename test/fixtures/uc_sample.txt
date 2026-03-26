@@ -1,0 +1,12 @@
+Name: Alex Rivera
+Email: alex.rivera@example.com
+Phone: 555-222-1111
+Intended Major: engineering
+Ethnicity: hispanic
+GPA: 3.82
+Graduation Year: 2026
+Activity: Robotics Club Captain
+Activity: STEM Tutor
+Award: Regional Science Fair Winner
+
+I grew up in a neighborhood where students rarely had access to engineering mentors. In high school, I built a peer tutoring program focused on algebra, physics, and introductory coding. I recruited classmates, partnered with a local library, and created a rotating workshop model so students could keep learning after each session. Through this work, I saw how technical education can become a bridge to opportunity when it is paired with mentorship and consistency. In college, I want to study engineering so I can design practical systems that improve everyday life and expand access for underserved communities.

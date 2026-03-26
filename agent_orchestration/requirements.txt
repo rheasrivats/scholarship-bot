@@ -1,0 +1,4 @@
+git+https://github.com/thedanielzhang/python-iriai-compose.git
+httpx>=0.27.0
+pydantic>=2.8.0
+openai>=1.40.0

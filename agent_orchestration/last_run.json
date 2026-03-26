@@ -1,0 +1,234 @@
+{
+  "summary": {
+    "featureId": "feature-scholarship-1",
+    "student": {
+      "name": "Noe",
+      "major": "Mechanical Engineering, B.S.",
+      "ethnicity": "hispanic/latino",
+      "state": "California",
+      "age": null
+    },
+    "counts": {
+      "discoveredCandidates": 1,
+      "shortlistedCandidates": 1,
+      "approvedIds": 1,
+      "autofillPlans": 1
+    },
+    "approvedIds": [
+      "western-digital-stem-scholarship-0fede24b"
+    ],
+    "shortlistPreview": [
+      {
+        "id": "western-digital-stem-scholarship-0fede24b",
+        "name": "Western Digital STEM Scholarship",
+        "awardAmount": 5000,
+        "deadline": "April 1, 2026 3:00 PM CT",
+        "sourceDomain": "scholarshipamerica.org"
+      }
+    ]
+  },
+  "state": {
+    "student_profile": {
+      "personalInfo": {
+        "fullName": "Noe",
+        "email": "nozuleta@s.sfusd.edu",
+        "phone": "4158797562",
+        "address": "1346 Vermont St, San Francisco, California, 94110",
+        "state": "California",
+        "dateOfBirth": "September 28, 2007",
+        "intendedMajor": "Mechanical Engineering, B.S.",
+        "ethnicity": "hispanic/latino"
+      },
+      "academics": {
+        "gpa": null,
+        "graduationYear": null,
+        "schools": []
+      },
+      "activities": [
+        "AVID - Academic support system for college and career readiness. Designed for students who have the potential to succeed in rigorous courses but need extra support, of",
+        "Cal-SOAP - Participated in SF Cal-SOAP, a state-funded college access program supporting first-gen and low-income students. Worked with Educational Advisor Muhameed Sayeed",
+        "College Connect - This selective program supports low-income students by offering comprehensive college advising. As a participant, I work within a cohort for peer support and co",
+        "Varsity Baseball MHS Team - Captain of varsity team. I Advanced to the playoffs every year. Played multiple positions, prioritizing the team's needs above my own. Formed strong bonds with",
+        "Soccer Team - Played both in the US and El Salvador (casually), which allowed me to experience different styles of play and grow as an athlete. Being part of the MHS team has",
+        "Varsity Football MHS Team - High school linebacker and defensive back. I played a key role in our defense, especially when it came to offense and communication. Football demanded a lot of",
+        "Fire Science - college-level class and serves as part of the two-year requirement needed to obtain an EMT degree and certification. Throughout the course, students learn about",
+        "EMT - The EMT class trains students in pre-hospital basic life support, combining classroom instruction with hands-on practice in patient assessment, CPR, first aid,",
+        "Mission Graduates - The Mission Graduates program at Mission High School provides college and financial aid application support through personalized counseling, in-class and group",
+        "Scholarmatch - ScholarMatch supports first-generation and low-income students in the college application process. It offers guidance for Personal Insight Questions (PIQs) and",
+        "Upward Bound - Upward Bound is a free TRIO college access program that helps first- generation and low-income students. I have access to a school-site advisor who has helped m",
+        "Housekeeping - On weekends, I help at home by cleaning my dad's cars, watering plants, doing laundry, and helping in the kitchen. These chores keep me busy and make me feel go",
+        "School-Wide Event Volunteer - During my community service, I assisted with organizing tours for visitors and students interested in learning more about our mission. My responsibilities inclu",
+        "Student Aide - Throughout the year, I assisted Mr. K with various tasks in his classroom to earn community service hours. My responsibilities included cleaning the classroom a",
+        "Kingdom Club - Kingdom Club is a welcoming community where everyone is invited to come and learn about the Word of God. We meet every Thursday to share meals, engage in meanin"
+      ],
+      "awards": [
+        "Logan Webb/Jessicajessica Mendoza award (mvp) (Non-academic) - 12th grade",
+        "Church Youth Power Group ypg (soccer) (Non-academic) - 11th grade",
+        "CPR (Academic) - 11th grade 12th grade",
+        "Stop the Bleed (Non-academic) - 11th grade 12th grade",
+        "First Aid (Non-academic) - 11th grade 12th grade"
+      ],
+      "essays": [
+        {
+          "id": "student-doc-1-essay-1",
+          "prompt": "Describe an example of your leadership experience in which you have positively influenced others, helped resolve disputes, or contributed to group efforts over time.",
+          "content": "Baseball has shaped me over the past four years, both on and off the field. Initially feeling like an outsider, I pushed myself to grow by drilling techniques and building relationships with older players. My hard work paid off when I made the varsity team in my sophomore year. As I improved, I was able to assist my teammates more. For instance, during a game when our catcher was pulled from the field, his anger was out of control. It was impacting himself and distracting the team, so I stepped in to help him refocus. By offering a less personal explanation of the coach's reasoning, I was able to calm him down, allowing the team to regain its focus. By my junior year, my teammates were looking to me for advice. In the semifinals, one of our captains struggled with his pitching, which affected the entire team. Recognizing his shaken confidence, I pulled him aside during the game to talk about the pressure he felt. I reassured him that the team would support him like family, and he returned stronger, demonstrating how impactful a few words of encouragement can be. Now, as team captain, I organize practices, manage logistics, and assist my teammates in improving their techniques. I've also learned to support my team mentally. I've become a good listener and observer, using my awareness to step in when I sense someone is struggling. I believe that leadership is about fostering an environment where everyone feels supported enough to perform at their best. This role has pushed me out of my comfort zone. I've transformed from a quiet learner into someone who actively bonds with new recruits, ensuring they feel at home. The responsibility of leadership has taught me to speak up, even in uncomfortable situations. Looking back, baseball has been about more than winning. It has taught me to lead with patience, empathy, and consistency, and reinforced the importance of being there for others when they need it most.",
+          "sourceDocumentId": "student-doc-1"
+        },
+        {
+          "id": "student-doc-1-essay-2",
+          "prompt": "Describe how you have taken advantage of a significant educational opportunity or worked to overcome an educational barrier you have faced.",
+          "content": "My journey towards college began in my junior year of high school. Until then, I had mostly focused on sports and hadn't given much thought to my academic future. As a first-generation college applicant, I felt nervous and unsure of where to start. When I shared my concerns, my sister encouraged me to seek guidance and told me about Mission Graduates, a local organization that helps students like me navigate the college application process. I was fortunate to be accepted into the program, and I was determined to make the most of the opportunity, learning everything I could about how to get into and succeed in college. Thanks to the College Connect program, I gained a deeper understanding of the college application process, the SATs, and what it takes to get ready for higher education. But more importantly than that, it also provided me with a community of peers who were working towards the same goals. In addition to application help I attended weekly cohort meetings where we talked about issues like equality vs. equity, and imposter syndrome. I began to bond with my cohort, and I was able to talk with them when I had questions about my applications or felt nervous about essays. One of the most helpful things for me was when the program sponsored a trip to visit colleges in California. Hearing a student share his struggles and how college guided him to a better position in life, I felt inspired and seen about my college journey. In that moment, I was able to envision myself navigating college and taking advantage of resources for first-generation students to ensure my success. For the first time, I was excited about applying and attending college. I'm so grateful to Mission Graduates for all the help they provided me, and to my family for motivating me to seek out these programs. When I first started thinking about college I was apprehensive as I didn't have any guidance, but this program has given me the confidence and direction to pursue a college degree and build a brighter future for myself.",
+          "sourceDocumentId": "student-doc-1"
+        },
+        {
+          "id": "student-doc-1-essay-3",
+          "prompt": "Think about an academic subject that inspires you. Describe how you have furthered this interest inside and/or outside of the classroom.",
+          "content": "Ever since I was a kid, I've been fascinated by cars, especially after watching movies like Cars and Fast and Furious, which sparked my curiosity about how they work and how to build or fix them myself. My favorite car is the Nissan Skyline GTR R34, which I first saw in Tokyo Drift. Watching these classic movies deepened my interest not just in driving cars, but in understanding, repairing, and even flipping them. I wanted to learn practical skills as well as explore the mechanics behind these machines. My interest in cars inspired me to want to become a mechanical engineer In my junior year, I got a job at a mechanic shop. At first, I was learning the basics, helping with parts, and trying not to get in the way. But over time, my mentor showed me more about how the car's body frame works, how the engine comes together, and what a transmission does. I was especially fascinated by the crankshaft and how it transfers the pistons' motion to make the car move. During this time, I had also started taking a more relevant course loadcourseload for engineering, and was learning important math and physics fundamentals. It was cool to see how concepts I learned in the classroom, like how torque actually applied to a real engine. Figuring out how all the parts worked together to make the car run was the coolest part of the job. All of these experiences made me certain that I want to study mechanical engineering in college. I've opened myself up to relevant coursework in physics, math, and engineering concepts, and I'm excited to continue building on that foundation at UC. I plan to join engineering clubs to gain practical skills, and collaborate with peers who share my passion. My goal isn't just to earn a degree, but to build a career based off of doing something I love. I hope to one day even pass on my love of cars to my own children while continuing to explore the mechanics behind them.",
+          "sourceDocumentId": "student-doc-1"
+        },
+        {
+          "id": "student-doc-1-essay-4",
+          "prompt": "Beyond what has already been shared in your application, what do you believe makes you a strong candidate for admissions to the University of California?",
+          "content": "I have always carried responsibilities beyond my years. My grandpa emigrated from El Salvador during the civil war, and like many refugee families, we struggled. My parents separated early because of my dad's anger and drinking, and even as a child, I understood my behavior affected our fragile stability. I had severe ADHD, which made school difficult, and I often got into fights with other students. My behavior added stress for my parents and worsened the tension at home. Doctors put me on medication, but the medication numbed me, so I had to get off of it. When I did, my energy returned, and so did the trouble. I was struggling with anger again, and now also getting bullied. My dad loved and was protective of me, but drinking made his anger unpredictable. One night, he demanded to know who was bullying me, but I knew in my gut it would only lead to bad consequences. That moment changed me. I realized my behavior was worsening the chaos at home, and I didn't want to repeat my dad's patterns. I wanted to be someone who could listen, not just react. So, the next time my bully provoked me, I stayed calm. It was a fundamental change in my behavior, and teachers noticed and intervened immediately. I realized then my choices shaped how others treated me. It wasn't easy, but I adjusted my mindset and my life changed. The Skill Strategies program at school taught me tools to help me study. I also started seeing a therapist who helped me better manage my emotions, and learned that I was good at empathizing with people. If I could pause before reacting to see situations from others' perspectives it was easier to stay calm. Though it has been a hard path, I am grateful for everything I've learned about myself along the way. My ADHD taught me patience, empathy, and determination. These traits have made me a better person for my community and paired with the resilience I developed will make me a strong candidate for the University of California.",
+          "sourceDocumentId": "student-doc-1"
+        }
+      ],
+      "extractionConfidence": {
+        "personalInfo.fullName": 0.8,
+        "personalInfo.email": 0.8,
+        "personalInfo.phone": 0.8,
+        "personalInfo.address": 0.8,
+        "personalInfo.state": 0.8,
+        "personalInfo.dateOfBirth": 0.8,
+        "personalInfo.intendedMajor": 0.8,
+        "personalInfo.ethnicity": 0.8
+      },
+      "fieldProvenance": {
+        "personalInfo.fullName": "student-doc-1",
+        "personalInfo.email": "student-doc-1",
+        "personalInfo.phone": "student-doc-1",
+        "personalInfo.address": "student-doc-1",
+        "personalInfo.state": "student-doc-1",
+        "personalInfo.dateOfBirth": "student-doc-1",
+        "personalInfo.intendedMajor": "student-doc-1",
+        "personalInfo.ethnicity": "student-doc-1"
+      },
+      "conflicts": []
+    },
+    "discovered_candidates": [
+      {
+        "id": "western-digital-stem-scholarship-0fede24b",
+        "name": "Western Digital STEM Scholarship",
+        "sourceDomain": "scholarshipamerica.org",
+        "sourceUrl": "https://scholarshipamerica.org/scholarship/westerndigital-stem/",
+        "sourceName": "Scholarship America",
+        "requiresAccount": true,
+        "awardAmount": 5000,
+        "deadline": "April 1, 2026 3:00 PM CT",
+        "estimatedEffortMinutes": 90,
+        "eligibility": {
+          "minGpa": 2.7,
+          "allowedMajors": [
+            "Engineering",
+            "Mathematics",
+            "Computer Science",
+            "Other Sciences (excluding agricultural, health, or life sciences)"
+          ],
+          "allowedEthnicities": []
+        },
+        "inferredRequirements": {
+          "requiredMajors": [
+            "STEM (including Engineering/Mechanical Engineering pathways)"
+          ],
+          "requiredEthnicities": [],
+          "requiredStates": [],
+          "minAge": null,
+          "maxAge": null,
+          "requirementStatements": [
+            "Must be a current full-time student at a U.S. two-year community college.",
+            "Must plan to transfer to a full-time accredited U.S. four-year college/university for the upcoming academic year.",
+            "Must pursue a Bachelor of Science degree in an eligible STEM field.",
+            "Must demonstrate financial need or hardship.",
+            "Must provide a complete transcript."
+          ]
+        },
+        "essayPrompts": [
+          "Personal statement required (public page does not publish the exact prompt text)."
+        ],
+        "formFields": [],
+        "status": "pending",
+        "reviewNotes": "",
+        "reviewedBy": "",
+        "reviewedAt": "",
+        "createdAt": "2026-03-25T03:55:27.941Z",
+        "riskScore": 20,
+        "riskFlags": [
+          "already_exists_in_vetted:rareis-scholarship-fund-scholarship-america-26b6c43d"
+        ],
+        "recommendedTier": "Tier 1"
+      }
+    ],
+    "shortlisted_candidates": [
+      {
+        "id": "western-digital-stem-scholarship-0fede24b",
+        "name": "Western Digital STEM Scholarship",
+        "sourceDomain": "scholarshipamerica.org",
+        "sourceUrl": "https://scholarshipamerica.org/scholarship/westerndigital-stem/",
+        "sourceName": "Scholarship America",
+        "requiresAccount": true,
+        "awardAmount": 5000,
+        "deadline": "April 1, 2026 3:00 PM CT",
+        "estimatedEffortMinutes": 90,
+        "eligibility": {
+          "minGpa": 2.7,
+          "allowedMajors": [
+            "Engineering",
+            "Mathematics",
+            "Computer Science",
+            "Other Sciences (excluding agricultural, health, or life sciences)"
+          ],
+          "allowedEthnicities": []
+        },
+        "inferredRequirements": {
+          "requiredMajors": [
+            "STEM (including Engineering/Mechanical Engineering pathways)"
+          ],
+          "requiredEthnicities": [],
+          "requiredStates": [],
+          "minAge": null,
+          "maxAge": null,
+          "requirementStatements": [
+            "Must be a current full-time student at a U.S. two-year community college.",
+            "Must plan to transfer to a full-time accredited U.S. four-year college/university for the upcoming academic year.",
+            "Must pursue a Bachelor of Science degree in an eligible STEM field.",
+            "Must demonstrate financial need or hardship.",
+            "Must provide a complete transcript."
+          ]
+        },
+        "essayPrompts": [
+          "Personal statement required (public page does not publish the exact prompt text)."
+        ],
+        "formFields": [],
+        "status": "pending",
+        "reviewNotes": "",
+        "reviewedBy": "",
+        "reviewedAt": "",
+        "createdAt": "2026-03-25T03:55:27.941Z",
+        "riskScore": 20,
+        "riskFlags": [
+          "already_exists_in_vetted:rareis-scholarship-fund-scholarship-america-26b6c43d"
+        ],
+        "recommendedTier": "Tier 1"
+      }
+    ],
+    "approved_ids": [
+      "western-digital-stem-scholarship-0fede24b"
+    ],
+    "autofill_plan": [
+      {
+        "raw_plan": "```json\n{\n  \"autofill_execution_plan\": [\n    {\n      \"id\": \"western-digital-stem-scholarship-0fede24b\",\n      \"required_manual_fields\": [\n        \"account_registration_and_login\",\n        \"gpa\",\n        \"graduation_year\",\n        \"current_college_enrollment_verification\",\n        \"transfer_plan_for_upcoming_academic_year\",\n        \"financial_need_or_hardship_response\",\n        \"official_transcript_upload\",\n        \"personal_statement_response_to_portal_prompt\",\n        \"review_eligibility_against_program_requirements\"\n      ],\n      \"safe_autofill_fields\": [\n        {\n          \"field\": \"full_name\",\n          \"value\": \"Noe\"\n        },\n        {\n          \"field\": \"email\",\n          \"value\": \"nozuleta@s.sfusd.edu\"\n        },\n        {\n          \"field\": \"phone\",\n          \"value\": \"4158797562\"\n        },\n        {\n          \"field\": \"address\",\n          \"value\": \"1346 Vermont St, San Francisco, California, 94110\"\n        },\n        {\n          \"field\": \"state\",\n          \"value\": \"California\"\n        },\n        {\n          \"field\": \"date_of_birth\",\n          \"value\": \"September 28, 2007\"\n        },\n        {\n          \"field\": \"intended_major\",\n          \"value\": \"Mechanical Engineering, B.S.\"\n        },\n        {\n          \"field\": \"ethnicity\",\n          \"value\": \"hispanic/latino\"\n        },\n        {\n          \"field\": \"activities_list\",\n          \"value\": \"Use provided activities from student profile\"\n        },\n        {\n          \"field\": \"awards_list\",\n          \"value\": \"Use provided awards from student profile\"\n        }\n      ],\n      \"account_handoff_required\": true\n    }\n  ]\n}\n```"
+      }
+    ]
+  }
+}
