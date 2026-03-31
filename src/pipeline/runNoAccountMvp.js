@@ -47,7 +47,7 @@ export async function runNoAccountMvp({
   sessionId,
   documents,
   scholarships,
-  maxDrafts = 5,
+  maxDrafts = null,
   overrides = {},
   enableAiEnrichment = false,
   aiTimeoutMs = 45000
@@ -68,8 +68,13 @@ export async function runNoAccountMvp({
     }
   });
 
-  const drafts = matchingResult.ranked
-    .slice(0, maxDrafts)
+  const normalizedMaxDrafts = Number(maxDrafts);
+  const shouldCapDrafts = Number.isFinite(normalizedMaxDrafts) && normalizedMaxDrafts > 0;
+  const rankedForDrafts = shouldCapDrafts
+    ? matchingResult.ranked.slice(0, normalizedMaxDrafts)
+    : matchingResult.ranked;
+
+  const drafts = rankedForDrafts
     .map((scholarship) => createNoAccountAutofillDraft({ scholarship, profile: updatedProfile }));
 
   return {

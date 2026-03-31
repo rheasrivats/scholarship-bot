@@ -1,8 +1,7 @@
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
-import { spawn } from "node:child_process";
+import { loadLocalEnv } from "../config/loadEnv.js";
 import { runNoAccountMvp } from "../pipeline/runNoAccountMvp.js";
 import { getScholarshipsDataFilePath, loadScholarships, replaceScholarships } from "../data/scholarshipStore.js";
 import { generateFormMappingWithPlaywrightFromUrl } from "../autofill/playwrightFormMapper.js";
@@ -13,8 +12,15 @@ import {
   getCandidatesDataFilePath,
   importCandidates,
   loadCandidates,
+  markCandidateSubmitted,
   reviewCandidate
 } from "../data/candidateStore.js";
+import {
+  importCandidatesToSupabase,
+  loadCandidatesFromSupabase,
+  markCandidateSubmittedInSupabase,
+  reviewCandidateInSupabase
+} from "../data/candidateStoreSupabase.js";
 import {
   startGuidedSubmission,
   advanceGuidedSubmission,
@@ -23,6 +29,16 @@ import {
   upsertGuidedSubmissionPayload,
   stopGuidedSubmission
 } from "../submission/guidedSubmitter.js";
+import {
+  getSupabaseAdminClient,
+  getSupabaseConfig,
+  getSupabasePublicClient,
+  getSupabaseStatus
+} from "../integrations/supabaseClient.js";
+import { discoverScholarshipCandidates } from "../discovery/discoveryService.js";
+import { processSessionDocuments } from "../pipeline/processSessionDocuments.js";
+
+loadLocalEnv();
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -59,41 +75,208 @@ function tailText(value, maxLines = 80) {
   return lines.slice(-maxLines).join("\n");
 }
 
-function runProcess(command, args, { cwd, env = {}, timeoutMs = 600000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: {
-        ...process.env,
-        ...env
-      },
-      stdio: ["ignore", "pipe", "pipe"]
-    });
+const DISCOVERY_LOG_FILE_PATH = path.resolve(process.cwd(), "data/discovery-runs.log.jsonl");
 
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
+function getDiscoveryLogFilePath() {
+  return DISCOVERY_LOG_FILE_PATH;
+}
 
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error(`Process timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+function determineNoNewCandidatesReason({
+  discoveredByAgent,
+  importedCount,
+  pendingCount,
+  fetchedPages = 0,
+  historySkippedPages = 0
+}) {
+  if (importedCount === null && discoveredByAgent === null) {
+    return "unknown_no_import_signal";
+  }
+  if ((importedCount || 0) > 0) {
+    return "";
+  }
+  if ((discoveredByAgent || 0) === 0 && (fetchedPages || 0) === 0 && (historySkippedPages || 0) > 0) {
+    return "all_search_results_skipped_by_recent_history";
+  }
+  if ((discoveredByAgent || 0) === 0) {
+    return "agent_returned_zero_candidates";
+  }
+  if ((discoveredByAgent || 0) > 0 && (importedCount || 0) === 0) {
+    return "all_discovered_candidates_skipped_or_deduped";
+  }
+  if ((pendingCount || 0) === 0) {
+    return "no_pending_candidates_after_import";
+  }
+  return "unknown_no_new_candidates";
+}
 
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
+const DEFAULT_DISCOVERY_QUERY_BUDGET = 12;
 
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve({ code: code ?? -1, stdout, stderr });
-    });
+async function appendDiscoveryRunLog(entry) {
+  const line = `${JSON.stringify(entry)}\n`;
+  await fs.mkdir(path.dirname(DISCOVERY_LOG_FILE_PATH), { recursive: true });
+  await fs.appendFile(DISCOVERY_LOG_FILE_PATH, line, "utf8");
+}
+
+async function readDiscoveryRunLogs(limit = 30) {
+  try {
+    const raw = await fs.readFile(DISCOVERY_LOG_FILE_PATH, "utf8");
+    const lines = raw.split("\n").map((line) => line.trim()).filter(Boolean);
+    const parsed = [];
+    for (let index = lines.length - 1; index >= 0 && parsed.length < limit; index -= 1) {
+      try {
+        parsed.push(JSON.parse(lines[index]));
+      } catch {
+        // Skip malformed lines.
+      }
+    }
+    return parsed;
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function normalizeUploadedDocuments(documents = []) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    throw new Error("documents must be a non-empty array");
+  }
+
+  return documents.map((doc, index) => {
+    if (!doc || !doc.fileName || !doc.contentBase64) {
+      throw new Error(`Document at index ${index} must include fileName and contentBase64`);
+    }
+
+    return {
+      documentId: doc.documentId || `doc-${index + 1}`,
+      fileName: doc.fileName,
+      fileBuffer: Buffer.from(doc.contentBase64, "base64")
+    };
   });
+}
+
+let runtimeDevUserId = String(process.env.SUPABASE_DEV_USER_ID || "").trim();
+
+function parseBearerToken(req) {
+  const raw = String(req.headers.authorization || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const match = raw.match(/^Bearer\s+(.+)$/i);
+  return String(match?.[1] || "").trim();
+}
+
+async function resolveUserContext(req) {
+  const token = parseBearerToken(req);
+  const headerUserId = String(req.headers["x-user-id"] || "").trim();
+  const envUserId = String(process.env.SUPABASE_DEV_USER_ID || "").trim();
+  const fallbackUserId = runtimeDevUserId || envUserId || "";
+
+  if (token) {
+    const adminClient = getSupabaseAdminClient();
+    if (adminClient) {
+      const { data, error } = await adminClient.auth.getUser(token);
+      if (!error && data?.user?.id) {
+        return {
+          userId: data.user.id,
+          email: data.user.email || "",
+          source: "bearer-token",
+          tokenProvided: true,
+          tokenValid: true,
+          tokenError: ""
+        };
+      }
+      return {
+        userId: "",
+        email: "",
+        source: "invalid-token",
+        tokenProvided: true,
+        tokenValid: false,
+        tokenError: error?.message || "Token verification failed"
+      };
+    }
+
+    return {
+      userId: "",
+      email: "",
+      source: "invalid-token",
+      tokenProvided: true,
+      tokenValid: false,
+      tokenError: "Supabase admin client unavailable for token verification"
+    };
+  }
+
+  if (headerUserId) {
+    return {
+      userId: headerUserId,
+      email: "",
+      source: "x-user-id",
+      tokenProvided: false,
+      tokenValid: false,
+      tokenError: ""
+    };
+  }
+
+  if (fallbackUserId) {
+    return {
+      userId: fallbackUserId,
+      email: "",
+      source: "dev-fallback",
+      tokenProvided: false,
+      tokenValid: false,
+      tokenError: ""
+    };
+  }
+
+  return {
+    userId: "",
+    email: "",
+    source: "none",
+    tokenProvided: false,
+    tokenValid: false,
+    tokenError: ""
+  };
+}
+
+async function shouldUseSupabaseCandidateStore(req) {
+  const config = getSupabaseConfig();
+  const user = await resolveUserContext(req);
+  return {
+    enabled: Boolean(config.configured && user.userId),
+    userId: user.userId,
+    user
+  };
+}
+
+async function findSupabaseUserByEmail(adminClient, email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  let page = 1;
+  const perPage = 200;
+  while (page <= 20) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      throw new Error(`Unable to list users: ${error.message}`);
+    }
+
+    const users = Array.isArray(data?.users) ? data.users : [];
+    const match = users.find((user) => String(user.email || "").toLowerCase() === normalizedEmail);
+    if (match) {
+      return match;
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
+    page += 1;
+  }
+
+  return null;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -119,8 +302,228 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && req.url === "/auth/signup") {
+    try {
+      const body = await parseBody(req);
+      const email = String(body.email || "").trim().toLowerCase();
+      const password = String(body.password || "");
+      if (!email || !password) {
+        sendJson(res, 400, { error: "email and password are required" });
+        return;
+      }
+
+      const publicClient = getSupabasePublicClient();
+      if (!publicClient) {
+        sendJson(res, 400, { error: "Supabase publishable key is not configured" });
+        return;
+      }
+
+      const { data, error } = await publicClient.auth.signUp({ email, password });
+      if (error) {
+        sendJson(res, 400, { error: error.message });
+        return;
+      }
+
+      sendJson(res, 200, {
+        message: "Signup request submitted",
+        userId: data?.user?.id || null,
+        email: data?.user?.email || email,
+        emailConfirmationRequired: !data?.session,
+        accessToken: data?.session?.access_token || null,
+        refreshToken: data?.session?.refresh_token || null,
+        expiresIn: data?.session?.expires_in || null
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/auth/signin") {
+    try {
+      const body = await parseBody(req);
+      const email = String(body.email || "").trim().toLowerCase();
+      const password = String(body.password || "");
+      if (!email || !password) {
+        sendJson(res, 400, { error: "email and password are required" });
+        return;
+      }
+
+      const publicClient = getSupabasePublicClient();
+      if (!publicClient) {
+        sendJson(res, 400, { error: "Supabase publishable key is not configured" });
+        return;
+      }
+
+      const { data, error } = await publicClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        sendJson(res, 400, { error: error.message });
+        return;
+      }
+
+      sendJson(res, 200, {
+        message: "Signed in",
+        userId: data?.user?.id || null,
+        email: data?.user?.email || email,
+        accessToken: data?.session?.access_token || null,
+        refreshToken: data?.session?.refresh_token || null,
+        expiresIn: data?.session?.expires_in || null
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/auth/me") {
+    const token = parseBearerToken(req);
+    if (!token) {
+      sendJson(res, 401, { error: "Missing bearer token" });
+      return;
+    }
+
+    const adminClient = getSupabaseAdminClient();
+    if (!adminClient) {
+      sendJson(res, 400, { error: "Supabase admin client not configured" });
+      return;
+    }
+
+    const { data, error } = await adminClient.auth.getUser(token);
+    if (error || !data?.user?.id) {
+      sendJson(res, 401, { error: error?.message || "Invalid token" });
+      return;
+    }
+
+    sendJson(res, 200, {
+      user: {
+        id: data.user.id,
+        email: data.user.email || null
+      }
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/dev/auth/bootstrap") {
+    try {
+      const body = await parseBody(req);
+      const email = String(body.email || "").trim().toLowerCase();
+      const password = String(body.password || "").trim() || "DevPassword123!";
+      if (!email) {
+        sendJson(res, 400, { error: "email is required" });
+        return;
+      }
+
+      const adminClient = getSupabaseAdminClient();
+      if (!adminClient) {
+        sendJson(res, 400, { error: "Supabase admin key is not configured" });
+        return;
+      }
+
+      let user = await findSupabaseUserByEmail(adminClient, email);
+      let created = false;
+      if (!user) {
+        const { data, error } = await adminClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            scholarshipBotDevBootstrap: true
+          }
+        });
+
+        if (error) {
+          sendJson(res, 400, { error: error.message });
+          return;
+        }
+
+        user = data?.user || null;
+        created = true;
+      }
+
+      if (!user?.id) {
+        sendJson(res, 500, { error: "Unable to create or resolve dev user" });
+        return;
+      }
+
+      runtimeDevUserId = String(user.id);
+
+      const publicClient = getSupabasePublicClient();
+      let accessToken = null;
+      let refreshToken = null;
+      let signInError = "";
+      if (publicClient) {
+        const signIn = await publicClient.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (signIn.error) {
+          signInError = signIn.error.message || "Unable to sign in with provided password";
+        } else {
+          accessToken = signIn.data?.session?.access_token || null;
+          refreshToken = signIn.data?.session?.refresh_token || null;
+        }
+      }
+
+      sendJson(res, 200, {
+        message: created ? "Created new dev user" : "Using existing dev user",
+        userId: user.id,
+        email: user.email || email,
+        created,
+        accessToken,
+        refreshToken,
+        signInError: signInError || null,
+        activeUserSource: "runtime-dev"
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
   if (req.method === "GET" && req.url === "/health") {
-    sendJson(res, 200, { ok: true });
+    const supabase = await getSupabaseStatus();
+    sendJson(res, 200, {
+      ok: true,
+      supabase: {
+        configured: supabase.configured,
+        connected: supabase.connected,
+        reason: supabase.reason
+      }
+    });
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/admin/supabase/status") {
+    const supabase = await getSupabaseStatus();
+    const user = await resolveUserContext(req);
+    sendJson(res, 200, {
+      supabase: {
+        ...supabase,
+        candidateStoreMode: supabase.configured && user.userId ? "supabase" : "local-fallback",
+        activeUserId: user.userId || null,
+        activeUserSource: user.source,
+        tokenProvided: user.tokenProvided,
+        tokenValid: user.tokenValid,
+        tokenError: user.tokenError || null
+      }
+    });
+    return;
+  }
+
+  if (req.method === "GET" && req.url.startsWith("/admin/logs/discovery")) {
+    try {
+      const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      const requestedLimit = Number(requestUrl.searchParams.get("limit") || 30);
+      const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? Math.floor(requestedLimit) : 30, 1), 200);
+      const logs = await readDiscoveryRunLogs(limit);
+      sendJson(res, 200, {
+        logs,
+        sourceFile: getDiscoveryLogFilePath(),
+        count: logs.length
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
     return;
   }
 
@@ -141,6 +544,24 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && req.url === "/admin/candidates") {
+    const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+    if (supabaseRoute.enabled) {
+      try {
+        const candidates = await loadCandidatesFromSupabase(supabaseRoute.userId);
+        sendJson(res, 200, {
+          candidates,
+          sourceFile: `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+        });
+        return;
+      } catch (error) {
+        sendJson(res, 200, {
+          candidates: await loadCandidates({ forceReload: true }),
+          sourceFile: `${getCandidatesDataFilePath()} (fallback: ${error.message})`
+        });
+        return;
+      }
+    }
+
     sendJson(res, 200, {
       candidates: await loadCandidates({ forceReload: true }),
       sourceFile: getCandidatesDataFilePath()
@@ -151,7 +572,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/run-no-account-mvp") {
     try {
       const body = await parseBody(req);
-      const sessionId = body.sessionId || `session-${Date.now()}`;
+      const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const documents = body.documents || [];
 
       if (!Array.isArray(documents) || documents.length === 0) {
@@ -163,7 +584,6 @@ const server = http.createServer(async (req, res) => {
         sessionId,
         documents,
         scholarships: await loadScholarships(),
-        maxDrafts: typeof body.maxDrafts === "number" ? body.maxDrafts : 5,
         overrides: body.overrides || {},
         enableAiEnrichment: body.enableAiEnrichment === true,
         aiTimeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
@@ -180,37 +600,44 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/run-no-account-mvp-upload") {
     try {
       const body = await parseBody(req);
-      const sessionId = body.sessionId || `session-${Date.now()}`;
-      const documents = body.documents || [];
-
-      if (!Array.isArray(documents) || documents.length === 0) {
-        sendJson(res, 400, { error: "documents must be a non-empty array" });
-        return;
-      }
-
-      const normalizedDocuments = documents.map((doc, index) => {
-        if (!doc || !doc.fileName || !doc.contentBase64) {
-          throw new Error(`Document at index ${index} must include fileName and contentBase64`);
-        }
-
-        return {
-          documentId: doc.documentId || `doc-${index + 1}`,
-          fileName: doc.fileName,
-          fileBuffer: Buffer.from(doc.contentBase64, "base64")
-        };
-      });
+      const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
 
       const result = await runNoAccountMvp({
         sessionId,
         documents: normalizedDocuments,
         scholarships: await loadScholarships(),
-        maxDrafts: typeof body.maxDrafts === "number" ? body.maxDrafts : 5,
         overrides: body.overrides || {},
         enableAiEnrichment: body.enableAiEnrichment !== false,
         aiTimeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
       });
 
       sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/profile-from-upload") {
+    try {
+      const body = await parseBody(req);
+      const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+      const result = await processSessionDocuments({
+        sessionId,
+        documents: normalizedDocuments,
+        enableAiEnrichment: body.enableAiEnrichment !== false,
+        aiTimeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
+      });
+
+      sendJson(res, 200, {
+        sessionId: result.sessionId,
+        mergedProfile: result.mergedProfile,
+        aiEnrichment: result.aiEnrichment,
+        documentCount: Array.isArray(result.documents) ? result.documents.length : normalizedDocuments.length
+      });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
     }
@@ -430,6 +857,22 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/admin/candidates/import") {
     try {
       const body = await parseBody(req);
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+      if (supabaseRoute.enabled) {
+        const imported = await importCandidatesToSupabase(
+          supabaseRoute.userId,
+          body.candidates,
+          await loadScholarships(),
+          { replacePending: body.replacePending === true }
+        );
+        sendJson(res, 200, {
+          message: `Imported ${imported.length} candidate scholarships`,
+          imported,
+          sourceFile: `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+        });
+        return;
+      }
+
       const imported = await importCandidates(body.candidates, await loadScholarships(), {
         replacePending: body.replacePending === true
       });
@@ -447,13 +890,23 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/admin/candidates/review") {
     try {
       const body = await parseBody(req);
-      const reviewed = await reviewCandidate({
-        id: body.id,
-        decision: body.decision,
-        reviewer: body.reviewer || "",
-        notes: body.notes || "",
-        tierOverride: body.tierOverride || ""
-      });
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+      const reviewed = supabaseRoute.enabled
+        ? await reviewCandidateInSupabase({
+          userId: supabaseRoute.userId,
+          scholarshipId: String(body.id || ""),
+          decision: body.decision,
+          reviewer: body.reviewer || "",
+          notes: body.notes || "",
+          tierOverride: body.tierOverride || ""
+        })
+        : await reviewCandidate({
+          id: body.id,
+          decision: body.decision,
+          reviewer: body.reviewer || "",
+          notes: body.notes || "",
+          tierOverride: body.tierOverride || ""
+        });
 
       let approvedScholarship = null;
       if (reviewed.status === "approved") {
@@ -467,7 +920,9 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, {
         reviewed,
         approvedScholarship,
-        candidatesFile: getCandidatesDataFilePath(),
+        candidatesFile: supabaseRoute.enabled
+          ? `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+          : getCandidatesDataFilePath(),
         vettedScholarshipsFile: getScholarshipsDataFilePath()
       });
     } catch (error) {
@@ -476,107 +931,267 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "POST" && req.url === "/admin/agent-discovery") {
-    let tempDir = "";
+  if (req.method === "POST" && req.url === "/admin/candidates/mark-submitted") {
     try {
       const body = await parseBody(req);
-      const documents = body.documents || [];
-      if (!Array.isArray(documents) || documents.length === 0) {
-        sendJson(res, 400, { error: "documents must be a non-empty array" });
-        return;
-      }
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+      const updated = supabaseRoute.enabled
+        ? await markCandidateSubmittedInSupabase({
+          userId: supabaseRoute.userId,
+          scholarshipId: String(body.id || ""),
+          reviewer: body.reviewer || "",
+          notes: body.notes || ""
+        })
+        : await markCandidateSubmitted({
+          id: String(body.id || ""),
+          reviewer: body.reviewer || "",
+          notes: body.notes || ""
+        });
 
-      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "agent-discovery-"));
-      const docPaths = [];
-      for (let i = 0; i < documents.length; i += 1) {
-        const doc = documents[i];
-        if (!doc || !doc.fileName || !doc.contentBase64) {
-          throw new Error(`Document at index ${i} must include fileName and contentBase64`);
-        }
-        const safeName = String(doc.fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
-        const filePath = path.join(tempDir, `${i + 1}-${safeName}`);
-        await fs.writeFile(filePath, Buffer.from(doc.contentBase64, "base64"));
-        docPaths.push(filePath);
-      }
-
-      const outputPath = path.join(tempDir, "workflow-output.json");
-      const pythonBin = path.resolve(process.cwd(), ".venv311/bin/python");
-      const scriptPath = path.resolve(process.cwd(), "agent_orchestration/run_workflow.py");
-      const apiBase = body.apiBase || `http://localhost:${port}`;
-
-      const args = [
-        scriptPath,
-        "--agent-runtime",
-        "codex-cli",
-        "--interaction-runtime",
-        "auto",
-        "--api-base",
-        apiBase,
-        "--discovery-only",
-        "--discovery-max-results",
-        String(typeof body.discoveryMaxResults === "number" ? body.discoveryMaxResults : 8),
-        "--discovery-query-budget",
-        String(typeof body.discoveryQueryBudget === "number" ? body.discoveryQueryBudget : 6),
-        "--out",
-        outputPath
-      ];
-
-      if (typeof body.studentAge === "number") {
-        args.push("--student-age", String(body.studentAge));
-      }
-
-      const domains = Array.isArray(body.discoveryDomains) ? body.discoveryDomains : [];
-      for (const domain of domains) {
-        if (domain) {
-          args.push("--discovery-domain", String(domain));
-        }
-      }
-
-      for (const docPath of docPaths) {
-        args.push("--doc", docPath);
-      }
-
-      const proc = await runProcess(pythonBin, args, {
-        cwd: process.cwd(),
-        timeoutMs: typeof body.runTimeoutMs === "number" ? body.runTimeoutMs : 10 * 60 * 1000,
-        env: {
-          CODEX_CLI_TIMEOUT_SEC: String(typeof body.codexTimeoutSec === "number" ? body.codexTimeoutSec : 240),
-          CODEX_CLI_ENABLE_SEARCH: "1",
-          CODEX_CLI_VERBOSE: "1"
-        }
+      sendJson(res, 200, {
+        candidate: updated,
+        candidatesFile: supabaseRoute.enabled
+          ? `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+          : getCandidatesDataFilePath()
       });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
 
-      if (proc.code !== 0) {
-        sendJson(res, 500, {
-          error: "Agent discovery process failed",
-          exitCode: proc.code,
-          stdoutTail: tailText(proc.stdout),
-          stderrTail: tailText(proc.stderr)
+  if (req.method === "POST" && req.url === "/admin/agent-discovery") {
+    const runId = `discovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let baseLogContext = {
+      runId,
+      timestamp: new Date().toISOString(),
+      mode: "unknown",
+      userStore: "unknown",
+      userId: null,
+      userSource: "none",
+      request: {
+        studentStage: "",
+        discoveryMaxResults: 8,
+        discoveryQueryBudget: DEFAULT_DISCOVERY_QUERY_BUDGET,
+        discoveryDomains: []
+      }
+    };
+    try {
+      const body = await parseBody(req);
+      const useCached = body.useCached !== false;
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+      baseLogContext = {
+        runId,
+        timestamp: new Date().toISOString(),
+        mode: useCached ? "cached" : "fresh",
+        userStore: supabaseRoute.enabled ? "supabase" : "local-fallback",
+        userId: supabaseRoute.userId || null,
+        userSource: supabaseRoute.user?.source || "none",
+        request: {
+          studentStage: String(body.studentStage || ""),
+          discoveryMaxResults: typeof body.discoveryMaxResults === "number" ? body.discoveryMaxResults : 8,
+          discoveryQueryBudget: typeof body.discoveryQueryBudget === "number" ? body.discoveryQueryBudget : DEFAULT_DISCOVERY_QUERY_BUDGET,
+          discoveryDomains: Array.isArray(body.discoveryDomains) ? body.discoveryDomains.filter(Boolean) : [],
+          manualRerun: body.manualRerun === true
+        }
+      };
+
+      if (useCached) {
+        const cachedCandidates = supabaseRoute.enabled
+          ? await loadCandidatesFromSupabase(supabaseRoute.userId)
+          : await loadCandidates({ forceReload: true });
+        const pending = cachedCandidates.filter((c) => c.status === "pending");
+        const approved = cachedCandidates.filter((c) => c.status === "approved");
+        await appendDiscoveryRunLog({
+          ...baseLogContext,
+          status: "ok",
+          reason: "cached_mode_reused_existing_queue",
+          counts: {
+            discoveredByAgent: null,
+            importedCount: null,
+            pendingCount: pending.length,
+            approvedCount: approved.length
+          }
+        });
+        sendJson(res, 200, {
+          message: "Agent discovery reused cached candidates (no new search run)",
+          summary: {
+            featureId: "cached-discovery",
+            student: {
+              name: null,
+              major: null,
+              ethnicity: null,
+              state: null,
+              stage: body.studentStage || null,
+              age: null
+            },
+            counts: {
+              discoveredCandidates: pending.length,
+              shortlistedCandidates: 0,
+              approvedIds: approved.length,
+              autofillPlans: 0
+            },
+            discoveryOnly: true,
+            approvedIds: approved.map((c) => c.id),
+            shortlistPreview: pending.slice(0, 10).map((c) => ({
+              id: c.id,
+              name: c.name,
+              awardAmount: c.awardAmount,
+              deadline: c.deadline,
+              sourceDomain: c.sourceDomain
+            }))
+          },
+          state: null,
+          stdoutTail: supabaseRoute.enabled
+            ? `Cached mode: returned existing candidate queue from supabase for user ${supabaseRoute.userId}`
+            : "Cached mode: returned existing candidate queue from data/scholarships.candidates.json",
+          stderrTail: ""
         });
         return;
       }
 
-      let outputPayload = {};
+      let normalizedDocuments = [];
       try {
-        const rawOut = await fs.readFile(outputPath, "utf8");
-        outputPayload = JSON.parse(rawOut);
-      } catch {
-        outputPayload = {};
+        normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+      } catch (error) {
+        await appendDiscoveryRunLog({
+          ...baseLogContext,
+          status: "error",
+          reason: "missing_documents",
+          error: error.message || "documents must be a non-empty array"
+        });
+        sendJson(res, 400, { error: error.message || "documents must be a non-empty array" });
+        return;
       }
 
+      const studentStage = String(body.studentStage || "").trim();
+      const discoveryMaxResults = typeof body.discoveryMaxResults === "number" ? body.discoveryMaxResults : 8;
+      const discoveryQueryBudget = typeof body.discoveryQueryBudget === "number" ? body.discoveryQueryBudget : DEFAULT_DISCOVERY_QUERY_BUDGET;
+      const discoveryDomains = Array.isArray(body.discoveryDomains) ? body.discoveryDomains.filter(Boolean) : [];
+      const sessionId = `feature-discovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      let existingCandidatesForFeedback = [];
+      try {
+        existingCandidatesForFeedback = supabaseRoute.enabled
+          ? await loadCandidatesFromSupabase(supabaseRoute.userId)
+          : await loadCandidates({ forceReload: true });
+      } catch {
+        existingCandidatesForFeedback = [];
+      }
+
+      const discovery = await discoverScholarshipCandidates({
+        sessionId,
+        documents: normalizedDocuments,
+        existingCandidates: existingCandidatesForFeedback,
+        studentStage,
+        discoveryMaxResults,
+        discoveryQueryBudget,
+        discoveryDomains,
+        manualRerun: body.manualRerun === true,
+        searchTimeoutMs: typeof body.searchTimeoutMs === "number" ? body.searchTimeoutMs : 10000,
+        pageTimeoutMs: typeof body.pageTimeoutMs === "number" ? body.pageTimeoutMs : 12000,
+        pageRetries: typeof body.pageRetries === "number" ? body.pageRetries : 1,
+        aiTimeoutMs: typeof body.codexTimeoutSec === "number" ? body.codexTimeoutSec * 1000 : 45000
+      });
+
+      const discoveredCandidates = discovery.candidates.map((item) => item.candidate);
+      const imported = supabaseRoute.enabled
+        ? await importCandidatesToSupabase(
+          supabaseRoute.userId,
+          discoveredCandidates,
+          await loadScholarships(),
+          { replacePending: true }
+        )
+        : await importCandidates(discoveredCandidates, await loadScholarships(), {
+          replacePending: true
+        });
+
+      let queueCandidates = [];
+      try {
+        queueCandidates = supabaseRoute.enabled
+          ? await loadCandidatesFromSupabase(supabaseRoute.userId)
+          : await loadCandidates({ forceReload: true });
+      } catch {
+        queueCandidates = [];
+      }
+      const pendingCount = queueCandidates.filter((c) => c.status === "pending").length;
+      const approvedCount = queueCandidates.filter((c) => c.status === "approved").length;
+      const discoveredByAgent = discoveredCandidates.length;
+      const importedCount = imported.length;
+      const noNewCandidatesReason = determineNoNewCandidatesReason({
+        discoveredByAgent,
+        importedCount,
+        pendingCount,
+        fetchedPages: discovery.diagnostics.fetchedPages,
+        historySkippedPages: discovery.diagnostics.historySkippedPages
+      });
+      const personal = discovery.mergedProfile?.personalInfo || {};
+      const summary = {
+        featureId: sessionId,
+        student: {
+          name: personal.fullName || null,
+          major: personal.intendedMajor || null,
+          ethnicity: personal.ethnicity || null,
+          state: personal.state || null,
+          stage: studentStage || null,
+          age: personal.age || null
+        },
+        counts: {
+          discoveredCandidates: discoveredByAgent,
+          importedCandidates: importedCount,
+          shortlistedCandidates: 0,
+          approvedIds: approvedCount,
+          autofillPlans: 0,
+          fetchedPages: discovery.diagnostics.fetchedPages,
+          searchResults: discovery.diagnostics.searchResults
+        },
+        discoveryOnly: true,
+        approvedIds: queueCandidates.filter((c) => c.status === "approved").map((c) => c.id),
+        discoveryErrors: discovery.errors,
+        shortlistPreview: discovery.candidates.slice(0, 10).map((item) => ({
+          id: item.candidate.sourceUrl || `${item.candidate.name}-${item.candidate.sourceDomain}`,
+          name: item.candidate.name,
+          awardAmount: item.candidate.awardAmount,
+          deadline: item.candidate.deadline,
+          sourceDomain: item.candidate.sourceDomain
+        }))
+      };
+      const stdoutTail = tailText([
+        `Session: ${sessionId}`,
+        `Queries: ${discovery.queries.join(" | ")}`,
+        ...discovery.logs
+      ].join("\n"), 200);
+      const stderrTail = tailText(discovery.errors.join("\n"));
+
+      await appendDiscoveryRunLog({
+        ...baseLogContext,
+        status: "ok",
+        reason: noNewCandidatesReason || "imported_new_candidates",
+        counts: {
+          discoveredByAgent,
+          importedCount,
+          pendingCount,
+          approvedCount
+        },
+        workflowSummary: summary,
+        stdoutTail,
+        stderrTail
+      });
+
       sendJson(res, 200, {
-        message: "Agent discovery completed",
-        summary: outputPayload.summary || null,
-        state: outputPayload.state || null,
-        stdoutTail: tailText(proc.stdout),
-        stderrTail: tailText(proc.stderr)
+        message: "Deterministic discovery completed",
+        summary,
+        state: null,
+        stdoutTail,
+        stderrTail
       });
     } catch (error) {
+      await appendDiscoveryRunLog({
+        ...baseLogContext,
+        status: "error",
+        reason: "request_validation_or_runtime_error",
+        error: error.message || String(error)
+      });
       sendJson(res, 400, { error: error.message });
-    } finally {
-      if (tempDir) {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      }
     }
     return;
   }
@@ -587,4 +1202,14 @@ const server = http.createServer(async (req, res) => {
 const port = Number(process.env.PORT || 3000);
 server.listen(port, () => {
   process.stdout.write(`Scholarship bot API listening on http://localhost:${port}\n`);
+  getSupabaseStatus()
+    .then((status) => {
+      const line = status.configured
+        ? `[supabase] configured=${status.configured} connected=${status.connected} (${status.reason})\n`
+        : "[supabase] not configured (set SUPABASE_URL + SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY)\n";
+      process.stdout.write(line);
+    })
+    .catch(() => {
+      process.stdout.write("[supabase] status check failed during startup\n");
+    });
 });

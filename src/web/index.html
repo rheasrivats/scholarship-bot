@@ -3,84 +3,198 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scholarship Bot MVP</title>
+    <title>The Archivist | ScholarshipBot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --bg: #f7f5ef;
-        --card: #fffdf6;
-        --ink: #12212b;
-        --accent: #0d7a6d;
-        --line: #d8d1be;
+        --surface: #faf9f7;
+        --surface-low: #f4f3f1;
+        --surface-card: #ffffff;
+        --ink: #1a1c1b;
+        --ink-soft: #43474e;
+        --primary: #002045;
+        --primary-2: #1a365d;
+        --secondary: #725b35;
+        --line: #c4c6cf;
+      }
+      html {
+        scroll-behavior: smooth;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        font-family: "Manrope", "Segoe UI", sans-serif;
         color: var(--ink);
-        background: radial-gradient(circle at top right, #fff8dc 0%, var(--bg) 45%, #ece7da 100%);
+        background:
+          radial-gradient(circle at 12px 12px, rgba(116, 119, 127, 0.25) 2px, transparent 0) 0 0/32px 32px,
+          var(--surface);
       }
-      .wrap {
-        max-width: 1080px;
-        margin: 40px auto;
-        padding: 0 16px 48px;
+      .app-shell {
+        max-width: 1400px;
+        margin: 20px auto;
+        background: var(--surface);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 12px 32px rgba(26, 28, 27, 0.08);
       }
-      .hero {
-        background: linear-gradient(135deg, #fffef9 0%, #f3ede0 100%);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 10px 30px rgba(18, 33, 43, 0.06);
-      }
-      .hero-top {
+      .topbar {
         display: flex;
-        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
+        align-items: center;
+        padding: 14px 22px;
+        border-bottom: 1px solid rgba(196, 198, 207, 0.35);
+        background: var(--surface);
       }
-      h1 {
-        margin: 0 0 8px;
-        font-size: 2rem;
+      .brand {
+        font-family: "Newsreader", serif;
+        color: var(--primary);
+        font-size: 30px;
+        line-height: 1;
       }
-      .sub {
-        margin: 0;
-        color: #3a4b58;
+      .topnav {
+        display: flex;
+        gap: 14px;
+        align-items: center;
       }
-      .nav-link {
-        display: inline-block;
+      .step-link {
         text-decoration: none;
-        border-radius: 999px;
-        padding: 9px 14px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--ink-soft);
+        padding: 6px 8px;
+        border-radius: 6px;
+      }
+      .step-link.active {
+        background: #fff;
+        color: var(--primary);
+        box-shadow: 0 1px 2px rgba(26, 28, 27, 0.08);
         font-weight: 700;
-        color: #1f3b4e;
-        background: #e7eef2;
-        border: 1px solid #c7d6df;
-        white-space: nowrap;
+      }
+      .step-link.locked {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        min-height: 90vh;
+      }
+      .sidenav {
+        background: var(--surface-low);
+        padding: 24px 16px;
+      }
+      .side-title {
+        font-family: "Newsreader", serif;
+        color: var(--primary);
+        font-size: 24px;
+      }
+      .side-sub {
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        color: #6b7280;
+        text-transform: uppercase;
+      }
+      .side-links {
+        margin-top: 20px;
+        display: grid;
+        gap: 8px;
+      }
+      .side-links a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: #4b5563;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 10px 12px;
+        border-radius: 6px;
+      }
+      .side-links a:hover { background: rgba(255,255,255,0.75); color: var(--primary); }
+      .side-links a.active {
+        background: #fff;
+        color: var(--primary);
+        box-shadow: 0 1px 2px rgba(26, 28, 27, 0.08);
+        font-weight: 700;
+      }
+      .nav-dot {
+        width: 14px;
+        text-align: center;
+        opacity: 0.9;
+      }
+      .side-actions {
+        margin-top: 18px;
+      }
+      .side-actions button {
+        width: 100%;
+        background: #ecf0f4;
+        color: #1f2a37;
+      }
+      .content {
+        padding: 20px 28px 46px;
+      }
+      .section {
+        margin-bottom: 24px;
+        background: var(--surface-low);
+        border-radius: 6px;
+        padding: 24px;
+      }
+      .view-hidden {
+        display: none !important;
+      }
+      .section-head {
+        margin: 0 0 8px;
+        font-family: "Newsreader", serif;
+        color: var(--primary);
+        font-size: 44px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+      .section-kicker {
+        margin: 0 0 10px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--secondary);
+        font-weight: 700;
       }
       .panel {
-        margin-top: 20px;
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 20px;
+        margin-top: 16px;
+        background: var(--surface-card);
+        border: 1px solid rgba(196, 198, 207, 0.35);
+        border-radius: 4px;
+        padding: 22px;
+        box-shadow: 0 12px 32px rgba(26, 28, 27, 0.06);
       }
       label {
         display: block;
-        font-weight: 600;
+        font-weight: 700;
         margin: 0 0 6px;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--primary);
       }
-      input[type="text"], input[type="number"], input[type="file"], textarea {
+      input[type="text"], input[type="password"], input[type="number"], input[type="file"], textarea {
         width: 100%;
-        border: 1px solid #bfc9d0;
-        border-radius: 10px;
+        border: 1px solid rgba(196, 198, 207, 0.5);
+        border-radius: 4px;
         padding: 10px 12px;
         font: inherit;
         background: #fff;
       }
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(0, 32, 69, 0.12);
+      }
       textarea { min-height: 72px; resize: vertical; }
       .grid {
         display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       }
       .controls {
         margin-top: 14px;
@@ -90,19 +204,25 @@
       }
       button {
         border: 0;
-        border-radius: 999px;
-        padding: 11px 18px;
+        border-radius: 4px;
+        padding: 12px 18px;
         font: inherit;
         font-weight: 700;
         cursor: pointer;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 11px;
       }
-      .primary { background: var(--accent); color: #fff; }
-      .secondary { background: #ecf2f5; color: #224; }
+      .primary {
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        color: #fff;
+      }
+      .secondary { background: #ecf0f4; color: #1f2a37; }
       .status {
         margin-top: 10px;
         min-height: 20px;
         font-weight: 600;
-        color: #274e65;
+        color: #1f3a52;
       }
       .results {
         margin-top: 20px;
@@ -111,23 +231,25 @@
       }
       .card {
         background: #fff;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 14px;
+        border: 1px solid rgba(196, 198, 207, 0.45);
+        border-radius: 4px;
+        padding: 16px;
       }
       .card h3 {
         margin: 0 0 10px;
-        font-size: 1.05rem;
+        font-size: 1.2rem;
+        font-family: "Newsreader", serif;
+        color: var(--primary);
       }
       .pill {
         display: inline-block;
         font-size: 0.8rem;
-        padding: 4px 8px;
+        padding: 4px 10px;
         border-radius: 999px;
         margin-right: 6px;
         margin-bottom: 6px;
-        background: #edf5f3;
-        color: #0b5a52;
+        background: #edf0f2;
+        color: #23495a;
       }
       .mono {
         white-space: pre-wrap;
@@ -155,7 +277,7 @@
       }
       .draft-field {
         border: 1px solid #d9e1e6;
-        border-radius: 10px;
+        border-radius: 4px;
         padding: 10px;
         background: #fcfdfd;
       }
@@ -180,10 +302,27 @@
       }
       .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
       .candidate {
-        border: 1px solid #d7e0e5;
-        border-radius: 12px;
-        padding: 12px;
+        border: 1px solid rgba(196, 198, 207, 0.35);
+        border-radius: 4px;
+        padding: 16px;
         background: #fff;
+        min-height: 320px;
+        display: flex;
+        flex-direction: column;
+      }
+      .candidate h3 {
+        margin: 0 0 8px;
+        font-family: "Newsreader", serif;
+        color: var(--primary);
+        font-size: 40px;
+        line-height: 0.98;
+        letter-spacing: -0.02em;
+      }
+      .candidate > div, .candidate .req, .candidate .flags, .candidate label {
+        font-size: 12px;
+      }
+      .candidate a {
+        color: var(--primary);
       }
       .danger { background: #9a1c2f; color: #fff; }
       .flags {
@@ -205,43 +344,216 @@
       .req-list li {
         margin-bottom: 4px;
       }
+      #queue {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+      .candidate .row {
+        margin-top: auto;
+      }
+      .candidate button[data-action="approve"] {
+        width: 100%;
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      }
+      .candidate button[data-action="reject"] {
+        width: 100%;
+      }
+      .guided-overlay-card {
+        border: 1px solid rgba(0, 32, 69, 0.15);
+        background: #faf9f7;
+        border-radius: 6px;
+      }
+      .guided-overlay-card > summary {
+        font-family: "Newsreader", serif;
+        color: var(--primary);
+        font-size: 24px;
+      }
+      .guided-overlay-head {
+        background: linear-gradient(135deg, #002045, #1a365d);
+        color: #fff;
+        border-radius: 4px;
+        padding: 12px;
+      }
+      .guided-overlay-task {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.9;
+      }
+      .guided-overlay-sub {
+        margin-top: 4px;
+        font-size: 14px;
+        font-style: italic;
+      }
+      .guided-progress {
+        margin-top: 10px;
+        height: 6px;
+        background: #d5dde8;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .guided-progress > span {
+        display: block;
+        width: 34%;
+        height: 100%;
+        background: linear-gradient(90deg, #002045, #1a365d);
+        animation: guidedPulse 2s ease-in-out infinite;
+      }
+      @keyframes guidedPulse {
+        0% { transform: translateX(-80%); }
+        100% { transform: translateX(280%); }
+      }
+      .guided-overlay-card .mono {
+        background: #002045;
+        color: #d6e3ff;
+      }
+      .guided-overlay-card .secondary {
+        border: 1px solid rgba(0, 32, 69, 0.25);
+      }
+      .submission-progress-card {
+        border-left: 4px solid var(--primary);
+      }
+      #upload-documents .section-head { font-size: 72px; }
+      #scholarship-matches .section-head { font-size: 68px; }
+      #review-prepare .section-head { font-size: 66px; }
+      #submission-progress .section-head { font-size: 64px; font-style: italic; }
+      #upload-documents .hint,
+      #scholarship-matches .hint,
+      #review-prepare .hint,
+      #submission-progress .hint {
+        max-width: 780px;
+      }
+      .live-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--secondary);
+        display: inline-block;
+        box-shadow: 0 0 0 0 rgba(114, 91, 53, 0.7);
+        animation: livePulse 2s infinite;
+        margin-right: 8px;
+      }
+      @keyframes livePulse {
+        0% { box-shadow: 0 0 0 0 rgba(114, 91, 53, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(114, 91, 53, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(114, 91, 53, 0); }
+      }
+      @media (max-width: 980px) {
+        .layout { grid-template-columns: 1fr; }
+        .sidenav { display: none; }
+        .content { padding: 16px; }
+        .section-head { font-size: 36px; }
+        #upload-documents .section-head,
+        #scholarship-matches .section-head,
+        #review-prepare .section-head,
+        #submission-progress .section-head { font-size: 44px; }
+        .topnav { display: none; }
+      }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="hero">
-        <div class="hero-top">
-          <div>
-            <h1>Scholarship Bot MVP</h1>
-            <p class="sub">Upload documents, review extracted data, apply edits, and generate no-account scholarship drafts.</p>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">The Archivist</div>
+        <nav class="topnav">
+          <a class="step-link" data-view-link="upload-documents" href="#upload-documents">Upload Documents</a>
+          <a class="step-link" data-view-link="scholarship-matches" href="#scholarship-matches">Scholarship Matches</a>
+          <a class="step-link" data-view-link="review-prepare" href="#review-prepare">Review & Prepare</a>
+          <a class="step-link" data-view-link="submission-progress" href="#submission-progress">Submission In Progress</a>
+        </nav>
+      </header>
+
+      <div class="layout">
+        <aside class="sidenav">
+          <div class="side-title">ScholarshipBot</div>
+          <div class="side-sub">Curated Excellence</div>
+          <nav class="side-links">
+            <a class="active" data-view-link="upload-documents" href="#upload-documents"><span class="nav-dot">▣</span>Application Tracker</a>
+            <a data-view-link="scholarship-matches" href="#scholarship-matches"><span class="nav-dot">★</span>My Matches</a>
+            <a data-view-link="review-prepare" href="#review-prepare"><span class="nav-dot">✎</span>Review & Prepare</a>
+            <a data-view-link="submission-progress" href="#submission-progress"><span class="nav-dot">◉</span>Submission Session</a>
+          </nav>
+          <div class="side-actions">
+            <button id="sideLogoutBtn" type="button">Log Out</button>
           </div>
-          <a class="nav-link" href="#admin-unified">Jump To Discovery Queue</a>
-        </div>
-      </div>
+        </aside>
+
+        <main class="content">
+      <section class="section" id="upload-documents">
+        <p class="section-kicker">Intellectual Repository</p>
+        <h1 class="section-head">Upload Documents</h1>
+        <p class="hint">Securely upload transcripts, UC/private applications, and essays for AI profile extraction.</p>
 
       <div class="panel" id="matching-panel">
-        <div class="grid">
-          <div>
-            <label for="sessionId">Session ID</label>
-            <input id="sessionId" type="text" placeholder="optional (auto-generated if blank)" />
+        <div class="card" id="authGateCard" style="margin-top:0;">
+          <h3 style="margin-top:0;">Welcome</h3>
+          <p class="hint">Sign in to save your scholarship queue, or continue as guest for a local-only session.</p>
+          <div class="grid">
+            <div>
+              <label for="authEmail">Email</label>
+              <input id="authEmail" type="text" placeholder="student@example.com" autocomplete="email" />
+            </div>
+            <div>
+              <label for="authPassword">Password</label>
+              <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+            </div>
           </div>
-          <div>
-            <label for="maxDrafts">Max Drafts</label>
-            <input id="maxDrafts" type="number" min="1" max="20" value="5" />
+          <div class="controls">
+            <button class="secondary" id="authSignUpBtn" type="button">Sign Up</button>
+            <button class="secondary" id="authSignInBtn" type="button">Sign In</button>
+            <button class="primary" id="authGuestBtn" type="button">Continue as Guest</button>
+            <button class="secondary view-hidden" id="authContinueBtn" type="button">Continue as Signed-In User</button>
           </div>
+          <details style="margin-top:10px;">
+            <summary>Developer Options</summary>
+            <div class="controls" style="margin-top:10px;">
+              <button class="secondary" id="authBootstrapBtn" type="button">Dev Create/Use User</button>
+              <button class="secondary" id="authSignOutBtn" type="button">Sign Out</button>
+            </div>
+          </details>
+          <div class="hint" id="authStatus">Choose sign in or continue as guest to unlock document upload.</div>
         </div>
 
-        <div style="margin-top:12px;">
-          <label for="docs">Documents (.pdf, .docx, .txt)</label>
-          <input id="docs" type="file" multiple accept=".pdf,.docx,.txt" />
-        </div>
+        <div id="uploadWorkbench" class="view-hidden">
+          <div class="hint" id="accessModeBanner" style="margin-top:4px;">Mode: guest</div>
 
-        <div class="controls">
-          <button class="primary" id="runBtn">Run Matching</button>
-          <button class="secondary" id="clearBtn" type="button">Clear Results</button>
+          <div style="margin-top:12px;">
+            <label for="docs">Documents (.pdf, .docx, .txt)</label>
+            <input id="docs" type="file" multiple accept=".pdf,.docx,.txt" />
+          </div>
+
+          <details style="margin-top:12px;">
+            <summary>Discovery Settings (Optional)</summary>
+            <div class="row" style="margin-top:10px;">
+              <label style="min-width:260px;">Student Stage
+                <select id="discoveryStudentStage">
+                  <option value="starting_college">About to start college</option>
+                  <option value="in_college">In college</option>
+                  <option value="transfering_college">In college, about to transfer</option>
+                </select>
+              </label>
+              <label style="min-width:180px;">Max Results
+                <input id="discoveryMaxResults" type="number" min="1" max="30" value="8" />
+              </label>
+              <label style="min-width:180px;">Query Budget
+                <input id="discoveryQueryBudget" type="number" min="1" max="20" value="12" />
+              </label>
+            </div>
+            <div style="margin-top:8px;">
+              <label for="discoveryDomains">Domain Hints (comma-separated, optional)</label>
+              <input id="discoveryDomains" type="text" placeholder="scholarshipamerica.org, hsf.net, jkcf.org" />
+            </div>
+            <p class="hint" style="margin-top:8px;">These settings are used automatically when you click <strong>Run Matching</strong>.</p>
+          </details>
+
+          <div class="controls">
+            <button class="primary" id="runBtn">Run Matching</button>
+            <button class="secondary" id="uploadOnlyBtn" type="button">Upload For Later</button>
+            <button class="secondary" id="clearBtn" type="button">Clear Results</button>
+          </div>
+          <div class="status" id="status"></div>
         </div>
-        <div class="status" id="status"></div>
       </div>
+      </section>
 
       <div class="panel" id="reviewPanel" style="display:none;">
         <h3 style="margin-top:0;">Human Review Edits</h3>
@@ -277,52 +589,82 @@
         </div>
       </div>
 
-      <div class="results" id="results"></div>
-
+      <section class="section" id="scholarship-matches">
+      <p class="section-kicker">Curation Results</p>
+      <h2 class="section-head">Scholarship Matches</h2>
       <div class="panel" id="admin-unified">
-        <h3 style="margin-top:0;">Agent Discovery + Candidate Queue</h3>
-        <p class="hint">Run AI-driven scholarship discovery and review candidates here on the same page.</p>
+        <h3 style="margin-top:0;">Discovery Controls</h3>
+        <p class="hint">Scholarship candidates discovered from your uploaded documents.</p>
         <div class="row">
+          <button class="primary" id="rerunDiscoveryBtn">Rerun Discovery</button>
           <button class="secondary" id="refreshQueueBtn">Refresh Queue</button>
         </div>
         <div class="status" id="adminStatus"></div>
-      </div>
-
-      <div class="panel">
-        <h3 style="margin-top:0;">Agent Discovery (Codex CLI)</h3>
-        <div class="row">
-          <label style="min-width:160px;">Student Age
-            <input id="agentStudentAge" type="number" min="10" max="100" value="18" />
-          </label>
-          <label style="min-width:180px;">Max Results
-            <input id="agentMaxResults" type="number" min="1" max="30" value="8" />
-          </label>
-          <label style="min-width:180px;">Query Budget
-            <input id="agentQueryBudget" type="number" min="1" max="20" value="6" />
-          </label>
-          <label style="min-width:200px;">Codex Timeout (sec)
-            <input id="agentCodexTimeoutSec" type="number" min="30" max="900" value="240" />
-          </label>
-        </div>
-        <div style="margin-top:8px;">
-          <label for="agentDocs">Student Documents (.pdf, .docx, .txt)</label>
-          <input id="agentDocs" type="file" multiple accept=".pdf,.docx,.txt" />
-        </div>
-        <div style="margin-top:8px;">
-          <label for="agentDomains">Domain Hints (comma-separated, optional)</label>
-          <input id="agentDomains" type="text" placeholder="scholarshipamerica.org, hsf.net, jkcf.org" />
-        </div>
-        <div class="controls">
-          <button class="primary" id="runAgentDiscoveryBtn">Run Agent Discovery</button>
-        </div>
         <p class="hint" id="agentRunMeta">Agent discovery idle.</p>
-        <div class="mono" id="agentLog">No agent discovery run yet.</div>
+        <div class="mono view-hidden" id="agentLog">No agent discovery run yet.</div>
+        <details class="panel" id="discoveryDiagnosticsPanel" style="margin-top:14px;">
+          <summary style="cursor:pointer; font-weight:700; color:var(--primary);">Discovery Diagnostics</summary>
+          <div id="discoveryDiagnosticsMeta" class="hint" style="margin-top:12px;">Loading latest discovery diagnostics...</div>
+          <div class="mono" id="discoveryDiagnostics">No discovery diagnostics loaded yet.</div>
+        </details>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="approvedQueuePanel">
+        <h3 style="margin-top:0;">Scholarships Ready to Apply To</h3>
+        <div id="approvedQueueMeta" class="hint">Loading...</div>
+        <div class="grid" id="approvedQueue"></div>
+      </div>
+
+      <div class="panel" id="candidateQueuePanel">
         <h3 style="margin-top:0;">Candidate Queue</h3>
         <div id="queueMeta" class="hint">Loading...</div>
         <div class="grid" id="queue"></div>
+      </div>
+
+      <details class="panel view-hidden" id="rejectedQueuePanel">
+        <summary style="cursor:pointer; font-weight:700; color:var(--primary);">Review Rejected Scholarships</summary>
+        <div id="rejectedQueueMeta" class="hint" style="margin-top:12px;">No rejected scholarships.</div>
+        <div class="grid" id="rejectedQueue"></div>
+      </details>
+      </section>
+
+      <section class="section" id="review-prepare">
+        <p class="section-kicker">Application Preparation</p>
+        <h2 class="section-head">Review & Prepare</h2>
+        <div class="panel" id="reviewTargetPanel">
+          <h3 style="margin-top:0;">Current Scholarship</h3>
+          <div class="hint" id="reviewTargetMeta">No scholarship selected yet. Approve one in Scholarship Matches and click Continue to Review & Prepare.</div>
+          <div class="controls" style="margin-top:12px;">
+            <button class="primary" id="reviewStartGuidedBtn" type="button" disabled>Start Guided Submission</button>
+            <button class="secondary" id="reviewOpenSourceBtn" type="button" disabled>Open Application Form</button>
+          </div>
+        </div>
+        <div class="results" id="results"></div>
+      </section>
+
+      <section class="section" id="submission-progress">
+        <p class="section-kicker">Status</p>
+        <h2 class="section-head">Submission In Progress</h2>
+        <div class="panel submission-progress-card">
+          <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:var(--secondary); font-weight:700;">Status: Active Process</div>
+              <div style="font-family:'Newsreader',serif; font-size:46px; color:var(--primary); font-style:italic; line-height:1.05; margin-top:6px;">Submission in Progress</div>
+              <p class="hint" id="submissionLiveScholarship" style="margin-top:10px; max-width:720px;">No active guided session yet. Start guided submission from a scholarship card above.</p>
+            </div>
+            <div class="hint" id="submissionLiveTask">Idle</div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div style="font-weight:700; color:var(--primary);"><span class="live-dot"></span>Active Automator Instance</div>
+            <p class="hint" id="submissionLiveStatus" style="margin:10px 0 0;">Bot is idle. Once started, page-level status appears here.</p>
+            <div class="controls" style="margin-top:14px;">
+              <button class="primary" id="submissionMarkCompleteBtn" type="button">Mark Submission as Complete</button>
+              <button class="secondary" id="submissionJumpBtn" type="button">Jump To Review & Prepare</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      </main>
       </div>
     </div>
 
@@ -330,35 +672,93 @@
       const statusEl = document.getElementById('status');
       const resultsEl = document.getElementById('results');
       const runBtn = document.getElementById('runBtn');
+      const uploadOnlyBtn = document.getElementById('uploadOnlyBtn');
       const clearBtn = document.getElementById('clearBtn');
       const applyEditsBtn = document.getElementById('applyEditsBtn');
       const reviewPanel = document.getElementById('reviewPanel');
       const matchingPanelEl = document.getElementById('matching-panel');
       const adminStatusEl = document.getElementById('adminStatus');
       const adminUnifiedPanelEl = document.getElementById('admin-unified');
+      const approvedQueuePanelEl = document.getElementById('approvedQueuePanel');
+      const approvedQueueEl = document.getElementById('approvedQueue');
+      const approvedQueueMetaEl = document.getElementById('approvedQueueMeta');
+      const candidateQueuePanelEl = document.getElementById('candidateQueuePanel');
       const queueEl = document.getElementById('queue');
       const queueMetaEl = document.getElementById('queueMeta');
+      const rejectedQueuePanelEl = document.getElementById('rejectedQueuePanel');
+      const rejectedQueueEl = document.getElementById('rejectedQueue');
+      const rejectedQueueMetaEl = document.getElementById('rejectedQueueMeta');
       const refreshQueueBtnEl = document.getElementById('refreshQueueBtn');
-      const runAgentDiscoveryBtnEl = document.getElementById('runAgentDiscoveryBtn');
+      const rerunDiscoveryBtnEl = document.getElementById('rerunDiscoveryBtn');
       const agentRunMetaEl = document.getElementById('agentRunMeta');
       const agentLogEl = document.getElementById('agentLog');
-      const agentDocsEl = document.getElementById('agentDocs');
+      const discoveryDiagnosticsPanelEl = document.getElementById('discoveryDiagnosticsPanel');
+      const discoveryDiagnosticsMetaEl = document.getElementById('discoveryDiagnosticsMeta');
+      const discoveryDiagnosticsEl = document.getElementById('discoveryDiagnostics');
+      const discoveryStudentStageEl = document.getElementById('discoveryStudentStage');
+      const discoveryMaxResultsEl = document.getElementById('discoveryMaxResults');
+      const discoveryQueryBudgetEl = document.getElementById('discoveryQueryBudget');
+      const discoveryDomainsEl = document.getElementById('discoveryDomains');
+      const reviewTargetPanelEl = document.getElementById('reviewTargetPanel');
+      const reviewTargetMetaEl = document.getElementById('reviewTargetMeta');
+      const reviewStartGuidedBtnEl = document.getElementById('reviewStartGuidedBtn');
+      const reviewOpenSourceBtnEl = document.getElementById('reviewOpenSourceBtn');
+      const submissionLiveScholarshipEl = document.getElementById('submissionLiveScholarship');
+      const submissionLiveTaskEl = document.getElementById('submissionLiveTask');
+      const submissionLiveStatusEl = document.getElementById('submissionLiveStatus');
+      const submissionMarkCompleteBtnEl = document.getElementById('submissionMarkCompleteBtn');
+      const submissionJumpBtnEl = document.getElementById('submissionJumpBtn');
+      const authEmailEl = document.getElementById('authEmail');
+      const authPasswordEl = document.getElementById('authPassword');
+      const authSignUpBtnEl = document.getElementById('authSignUpBtn');
+      const authSignInBtnEl = document.getElementById('authSignInBtn');
+      const authGuestBtnEl = document.getElementById('authGuestBtn');
+      const authContinueBtnEl = document.getElementById('authContinueBtn');
+      const authBootstrapBtnEl = document.getElementById('authBootstrapBtn');
+      const authSignOutBtnEl = document.getElementById('authSignOutBtn');
+      const authStatusEl = document.getElementById('authStatus');
+      const authGateCardEl = document.getElementById('authGateCard');
+      const uploadWorkbenchEl = document.getElementById('uploadWorkbench');
+      const accessModeBannerEl = document.getElementById('accessModeBanner');
+      const sideLogoutBtnEl = document.getElementById('sideLogoutBtn');
+      const allViewIds = ['upload-documents', 'scholarship-matches', 'review-prepare', 'submission-progress'];
+      const viewEls = Object.fromEntries(allViewIds.map((id) => [id, document.getElementById(id)]));
+      const navLinks = Array.from(document.querySelectorAll('[data-view-link]'));
+      const enabledViews = new Set(['upload-documents']);
+      let currentView = 'upload-documents';
 
       let uploadedDocsPayload = null;
       let agentUploadedDocsPayload = null;
-      let latestSessionId = null;
       let latestMergedProfile = null;
+      let currentReviewScholarship = null;
+      let currentCandidateQueue = [];
+      let currentCandidateQueueSourceFile = '';
       let draftFieldEdits = {};
       let draftFieldFiles = {};
       let draftFieldRequirements = {};
       let draftSubmissionState = {};
       let draftGuidedSessions = {};
+      let activeGuidedDraftKey = null;
+      const draftMarkSubmittedHandlers = {};
       const labelOverrideStorageKey = 'scholarship_label_overrides_v1';
+      const authStorageKey = 'scholarship_auth_state_v1';
       let draftLabelOverrides = {};
+      let authState = { userId: '', email: '', accessToken: '' };
+      let accessUnlocked = false;
       try {
         draftLabelOverrides = JSON.parse(window.localStorage.getItem(labelOverrideStorageKey) || '{}');
       } catch {
         draftLabelOverrides = {};
+      }
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(authStorageKey) || '{}');
+        authState = {
+          userId: String(parsed.userId || '').trim(),
+          email: String(parsed.email || '').trim(),
+          accessToken: String(parsed.accessToken || '').trim()
+        };
+      } catch {
+        authState = { userId: '', email: '', accessToken: '' };
       }
 
       const reviewInputs = {
@@ -375,10 +775,149 @@
         statusEl.style.color = isError ? '#a11a2d' : '#274e65';
       }
 
+      function resolveSubmissionTargetDraftKey() {
+        const reviewKey = String(currentReviewScholarship?.id || currentReviewScholarship?.name || '').trim();
+        if (reviewKey && draftMarkSubmittedHandlers[reviewKey]) {
+          return reviewKey;
+        }
+
+        if (activeGuidedDraftKey && draftMarkSubmittedHandlers[activeGuidedDraftKey]) {
+          return activeGuidedDraftKey;
+        }
+
+        const availableKeys = Object.keys(draftMarkSubmittedHandlers || {})
+          .filter((key) => typeof draftMarkSubmittedHandlers[key] === 'function');
+        if (availableKeys.length === 1) {
+          return availableKeys[0];
+        }
+
+        return null;
+      }
+
+      async function markScholarshipSubmissionCompleteById(id, scholarshipName = 'Selected scholarship') {
+        const scholarshipId = String(id || '').trim();
+        if (!scholarshipId) {
+          throw new Error('Selected scholarship is missing an id.');
+        }
+
+        await fetchJson('/admin/candidates/mark-submitted', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: scholarshipId })
+        });
+
+        currentCandidateQueue = currentCandidateQueue.map((candidate) => (
+          candidate.id === scholarshipId
+            ? { ...candidate, status: 'submitted' }
+            : candidate
+        ));
+        const message = `${scholarshipName} marked as submitted.`;
+        setStatus(message);
+        setAdminStatus(message);
+        await loadCandidateQueue();
+      }
+
       function setAdminStatus(text, isError = false) {
         adminStatusEl.textContent = text;
         adminStatusEl.style.color = isError ? '#a11a2d' : '#274e65';
       }
+
+      function setAuthStatus(text, isError = false) {
+        authStatusEl.textContent = text;
+        authStatusEl.style.color = isError ? '#a11a2d' : '#4f5e69';
+      }
+
+      function lockUploadWorkbench() {
+        accessUnlocked = false;
+        if (authGateCardEl) authGateCardEl.classList.remove('view-hidden');
+        if (uploadWorkbenchEl) uploadWorkbenchEl.classList.add('view-hidden');
+      }
+
+      function unlockUploadWorkbench(modeLabel = 'guest') {
+        accessUnlocked = true;
+        if (authGateCardEl) authGateCardEl.classList.add('view-hidden');
+        if (uploadWorkbenchEl) uploadWorkbenchEl.classList.remove('view-hidden');
+        if (accessModeBannerEl) {
+          accessModeBannerEl.textContent = `Mode: ${modeLabel}`;
+        }
+      }
+
+      function saveAuthState() {
+        window.localStorage.setItem(authStorageKey, JSON.stringify(authState));
+      }
+
+      function renderAuthState() {
+        const isSignedIn = Boolean(authState.userId || authState.accessToken);
+        if (authState.email && !authEmailEl.value) {
+          authEmailEl.value = authState.email;
+        }
+        authSignOutBtnEl.disabled = !isSignedIn;
+        sideLogoutBtnEl.disabled = !isSignedIn && !accessUnlocked;
+        authContinueBtnEl.classList.toggle('view-hidden', !isSignedIn);
+        if (isSignedIn) {
+          const identity = authState.email || authState.userId || 'Signed in user';
+          setAuthStatus(`Signed in as ${identity}. Continue to unlock uploads.`);
+        } else {
+          setAuthStatus('Choose sign in or continue as guest to unlock document upload.');
+        }
+      }
+
+      function setAuthState(nextState) {
+        authState = {
+          userId: String(nextState?.userId || '').trim(),
+          email: String(nextState?.email || '').trim(),
+          accessToken: String(nextState?.accessToken || '').trim()
+        };
+        saveAuthState();
+        renderAuthState();
+      }
+
+      function syncViewNav() {
+        navLinks.forEach((link) => {
+          const viewId = link.getAttribute('data-view-link');
+          const isEnabled = enabledViews.has(viewId);
+          const isActive = viewId === currentView;
+          link.classList.toggle('active', isActive);
+          link.classList.toggle('locked', !isEnabled);
+          link.setAttribute('aria-disabled', isEnabled ? 'false' : 'true');
+        });
+      }
+
+      function enableView(viewId) {
+        if (allViewIds.includes(viewId)) {
+          enabledViews.add(viewId);
+          syncViewNav();
+        }
+      }
+
+      function showView(viewId, options = {}) {
+        const { force = false } = options;
+        if (!allViewIds.includes(viewId)) return false;
+        if (!force && !enabledViews.has(viewId)) return false;
+        currentView = viewId;
+        allViewIds.forEach((id) => {
+          if (viewEls[id]) {
+            viewEls[id].classList.toggle('view-hidden', id !== viewId);
+          }
+        });
+        const showReviewPanel = viewId === 'upload-documents' && reviewPanel.style.display !== 'none';
+        reviewPanel.classList.toggle('view-hidden', !showReviewPanel);
+        if (window.location.hash !== `#${viewId}`) {
+          history.replaceState(null, '', `#${viewId}`);
+        }
+        syncViewNav();
+        return true;
+      }
+
+      navLinks.forEach((link) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          const targetView = link.getAttribute('data-view-link');
+          if (!showView(targetView)) {
+            setStatus('Complete the current step first to unlock that page.', true);
+          }
+        });
+      });
 
       function getLabelOverride(key) {
         return String(draftLabelOverrides[key] || '').trim();
@@ -417,6 +956,14 @@
       }
 
       async function fetchJson(url, opts = {}, timeoutMs = 0) {
+        const headers = new Headers(opts.headers || {});
+        if (authState.accessToken) {
+          headers.set('authorization', `Bearer ${authState.accessToken}`);
+        } else if (authState.userId) {
+          headers.set('x-user-id', authState.userId);
+        }
+        opts = { ...opts, headers };
+
         let timeoutId = null;
         let controller = null;
         if (timeoutMs > 0 && typeof AbortController !== 'undefined') {
@@ -465,6 +1012,63 @@
           'personalInfo.ethnicity': reviewInputs.ethnicity.value,
           'academics.gpa': reviewInputs.gpa.value
         };
+      }
+
+      function buildBasePayloadFromProfile(profile) {
+        const payload = {};
+        const p = profile?.personalInfo || {};
+        const a = profile?.academics || {};
+        const essays = Array.isArray(profile?.essays) ? profile.essays : [];
+        const firstEssay = essays.find((e) => String(e?.content || '').trim())?.content || '';
+
+        if (p.fullName) payload.full_name = String(p.fullName);
+        if (p.email) payload.email = String(p.email);
+        if (p.phone) payload.phone = String(p.phone);
+        if (p.dateOfBirth) payload.date_of_birth = String(p.dateOfBirth);
+        if (p.addressLine1) {
+          payload.address_line_1 = String(p.addressLine1);
+          payload.address = String(p.addressLine1);
+          payload.mailing_address = String(p.addressLine1);
+          payload.street_address = String(p.addressLine1);
+        }
+        if (p.addressLine2) {
+          payload.address_line_2 = String(p.addressLine2);
+          payload.address2 = String(p.addressLine2);
+        }
+        if (p.city) payload.city = String(p.city);
+        if (p.state) payload.state = String(p.state);
+        if (p.postalCode) {
+          payload.postal_code = String(p.postalCode);
+          payload.zip = String(p.postalCode);
+          payload.zip_code = String(p.postalCode);
+        }
+        if (p.country) payload.country = String(p.country);
+        if (p.intendedMajor) payload.intended_major = String(p.intendedMajor);
+        if (p.ethnicity) payload.ethnicity = String(p.ethnicity);
+        if (a.gpa) payload.gpa = String(a.gpa);
+        if (a.schoolName) {
+          payload.school_name = String(a.schoolName);
+          payload.school = String(a.schoolName);
+          payload.high_school = String(a.schoolName);
+          payload.current_school = String(a.schoolName);
+        }
+        if (firstEssay) payload.personal_statement = String(firstEssay);
+        return payload;
+      }
+
+      function renderReviewTargetPanel() {
+        if (!currentReviewScholarship) {
+          reviewTargetMetaEl.textContent = 'No scholarship selected yet. Approve one in Scholarship Matches and click Continue to Review & Prepare.';
+          reviewStartGuidedBtnEl.disabled = true;
+          reviewOpenSourceBtnEl.disabled = true;
+          return;
+        }
+
+        reviewTargetMetaEl.textContent = latestMergedProfile
+          ? `${currentReviewScholarship.name} (${currentReviewScholarship.sourceDomain})`
+          : `${currentReviewScholarship.name} (${currentReviewScholarship.sourceDomain}) - no current document profile loaded, so guided submission will start with limited autofill.`;
+        reviewStartGuidedBtnEl.disabled = !currentReviewScholarship.sourceUrl;
+        reviewOpenSourceBtnEl.disabled = !currentReviewScholarship.sourceUrl;
       }
 
       function renderListCard(title, items, renderer) {
@@ -523,7 +1127,7 @@
 
           const keyPrefix = draft.scholarshipId || draft.scholarshipName;
           if (!draftSubmissionState[keyPrefix]) {
-            draftSubmissionState[keyPrefix] = { submitted: false };
+            draftSubmissionState[keyPrefix] = { submitted: draft.status === 'submitted' };
           }
           const submissionState = draftSubmissionState[keyPrefix];
 
@@ -853,6 +1457,7 @@
           const payloadMono = payloadBox.querySelector('.mono');
 
           const guidedBox = document.createElement('details');
+          guidedBox.className = 'guided-overlay-card';
           guidedBox.style.marginTop = '10px';
           guidedBox.innerHTML = `
             <summary>Guided Submission Session</summary>
@@ -860,6 +1465,10 @@
             <div class="hint" data-role="guided-url" style="margin-top:6px;"></div>
             <div data-role="guided-essay-tools" style="margin-top:8px;"></div>
             <div class="mono" data-role="guided-fields" style="margin-top:8px; white-space:pre-wrap;">No page fields captured yet.</div>
+            <details style="margin-top:8px;">
+              <summary>Refill Debug</summary>
+              <div class="mono" data-role="guided-debug" style="margin-top:8px; white-space:pre-wrap;">No refill debug yet.</div>
+            </details>
             <div class="row" style="margin-top:8px;">
               <button type="button" class="secondary" data-action="guided-refill">Refill This Page</button>
               <button type="button" class="secondary" data-action="guided-next">Approve This Page & Next</button>
@@ -872,6 +1481,7 @@
           const guidedUrlEl = guidedBox.querySelector('[data-role="guided-url"]');
           const guidedEssayToolsEl = guidedBox.querySelector('[data-role="guided-essay-tools"]');
           const guidedFieldsEl = guidedBox.querySelector('[data-role="guided-fields"]');
+          const guidedDebugEl = guidedBox.querySelector('[data-role="guided-debug"]');
           const guidedRefillBtn = guidedBox.querySelector('[data-action="guided-refill"]');
           const guidedNextBtn = guidedBox.querySelector('[data-action="guided-next"]');
           const guidedAccountReadyBtn = guidedBox.querySelector('[data-action="guided-account-ready"]');
@@ -934,10 +1544,14 @@
             }
             if (p.addressLine1) {
               payload.address_line_1 = String(p.addressLine1);
+              payload.address = String(p.addressLine1);
+              payload.mailing_address = String(p.addressLine1);
+              payload.street_address = String(p.addressLine1);
               payload['personalInfo.addressLine1'] = String(p.addressLine1);
             }
             if (p.addressLine2) {
               payload.address_line_2 = String(p.addressLine2);
+              payload.address2 = String(p.addressLine2);
               payload['personalInfo.addressLine2'] = String(p.addressLine2);
             }
             if (p.city) {
@@ -951,6 +1565,7 @@
             if (p.postalCode) {
               payload.postal_code = String(p.postalCode);
               payload.zip = String(p.postalCode);
+              payload.zip_code = String(p.postalCode);
               payload['personalInfo.postalCode'] = String(p.postalCode);
             }
             if (p.country) {
@@ -971,6 +1586,9 @@
             }
             if (a.schoolName) {
               payload.school_name = String(a.schoolName);
+              payload.school = String(a.schoolName);
+              payload.high_school = String(a.schoolName);
+              payload.current_school = String(a.schoolName);
               payload['academics.schoolName'] = String(a.schoolName);
             }
             if (firstEssay) {
@@ -1150,23 +1768,41 @@
               guidedUrlEl.textContent = '';
               guidedEssayToolsEl.innerHTML = '';
               guidedFieldsEl.textContent = 'No page fields captured yet.';
+              guidedDebugEl.textContent = 'No refill debug yet.';
               guidedRefillBtn.disabled = true;
               guidedNextBtn.disabled = true;
               guidedAccountReadyBtn.disabled = true;
               guidedStopBtn.disabled = true;
+              if (activeGuidedDraftKey === keyPrefix) {
+                activeGuidedDraftKey = null;
+                submissionLiveScholarshipEl.textContent = 'No active guided session yet. Start guided submission from a scholarship card above.';
+                submissionLiveTaskEl.textContent = 'Idle';
+                submissionLiveStatusEl.textContent = 'Bot is idle. Once started, page-level status appears here.';
+              }
               return;
             }
             draftGuidedSessions[keyPrefix] = state.sessionId;
+            activeGuidedDraftKey = keyPrefix;
             const pageCount = Array.isArray(state.fields) ? state.fields.length : 0;
             const accountBadge = state.accountRequired ? ' [Account Setup Needed]' : '';
             guidedStatusEl.textContent = `Step ${state.stepNumber}${accountBadge}: ${state.reviewMessage || 'Review page and continue.'} (captured ${pageCount} fields)`;
             guidedUrlEl.textContent = `Current URL: ${state.currentUrl || 'unknown'}`;
             buildGuidedEssayTools(state);
             guidedFieldsEl.textContent = JSON.stringify(state.fields || [], null, 2);
+            const debugEntries = Array.isArray(state.fillDiagnostics?.debugEntries) ? state.fillDiagnostics.debugEntries : [];
+            guidedDebugEl.textContent = debugEntries.length > 0
+              ? JSON.stringify(debugEntries, null, 2)
+              : 'No refill debug entries captured yet.';
             guidedRefillBtn.disabled = false;
             guidedNextBtn.disabled = !state.canAdvance;
             guidedAccountReadyBtn.disabled = false;
             guidedStopBtn.disabled = false;
+            submissionLiveScholarshipEl.textContent = `The Archivist is currently filling your application for ${draft.scholarshipName}.`;
+            submissionLiveTaskEl.textContent = state.accountRequired
+              ? 'Waiting for account setup'
+              : `Step ${state.stepNumber}: ${state.currentUrl || 'Guided submission page'}`;
+            submissionLiveStatusEl.textContent = state.reviewMessage || 'Guided submission active.';
+            enableView('submission-progress');
           }
 
           function refreshDraftStatus() {
@@ -1201,12 +1837,58 @@
             payloadMono.textContent = JSON.stringify(buildPayload(), null, 2);
           }
 
+          const handleMarkSubmitted = async () => {
+            try {
+              const markBtn = actions.querySelector('[data-action="mark-submitted"]');
+              if (markBtn) {
+                markBtn.disabled = true;
+                markBtn.textContent = 'Marking...';
+              }
+              await fetchJson('/admin/candidates/mark-submitted', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  id: draft.scholarshipId
+                })
+              });
+              submissionState.submitted = true;
+              const message = `${draft.scholarshipName} marked as submitted.`;
+              setStatus(message);
+              mappingStatusEl.textContent = message;
+              refreshDraftStatus();
+              if (activeGuidedDraftKey === keyPrefix) {
+                submissionLiveStatusEl.textContent = `Marked complete for ${draft.scholarshipName}.`;
+                submissionLiveTaskEl.textContent = 'Completing submission...';
+                const sessionId = draftGuidedSessions[keyPrefix];
+                if (sessionId) {
+                  try {
+                    await fetchJson('/admin/submission/stop', {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify({ sessionId })
+                    }, 30000);
+                  } catch {
+                    // best effort: submission completion should still persist
+                  }
+                }
+                delete draftGuidedSessions[keyPrefix];
+                renderGuidedState(null);
+              }
+              await loadCandidateQueue();
+            } catch (err) {
+              setStatus(err.message || String(err), true);
+              mappingStatusEl.textContent = err.message || String(err);
+            } finally {
+              const markBtn = actions.querySelector('[data-action="mark-submitted"]');
+              if (markBtn) {
+                markBtn.disabled = false;
+                markBtn.textContent = 'Mark Submitted';
+              }
+            }
+          };
+          draftMarkSubmittedHandlers[keyPrefix] = handleMarkSubmitted;
           actions.querySelector('[data-action="mark-submitted"]').addEventListener('click', () => {
-            submissionState.submitted = true;
-            const message = `${draft.scholarshipName} marked as submitted.`;
-            setStatus(message);
-            mappingStatusEl.textContent = message;
-            refreshDraftStatus();
+            handleMarkSubmitted().catch((err) => setStatus(err.message || String(err), true));
           });
 
           const generateBtn = actions.querySelector('[data-action="generate-mapping"]');
@@ -1277,6 +1959,8 @@
                 } else {
                   setStatus(`Guided submission started for ${draft.scholarshipName}. Review browser page, then click "Approve This Page & Next".`);
                 }
+                enableView('submission-progress');
+                showView('submission-progress');
               } catch (err) {
                 setStatus(err.message || String(err), true);
               } finally {
@@ -1391,9 +2075,101 @@
         return card;
       }
 
-      function renderQueueCandidate(candidate) {
+      function renderCandidateQueue(allCandidates = [], sourceFile = '') {
+        currentCandidateQueue = Array.isArray(allCandidates) ? allCandidates : [];
+        currentCandidateQueueSourceFile = String(sourceFile || '');
+        const rejectedCandidates = currentCandidateQueue.filter((c) => c.status === 'rejected');
+        const hiddenRejected = rejectedCandidates.length;
+        const hiddenSubmitted = currentCandidateQueue.filter((c) => c.status === 'submitted').length;
+        const readyCandidates = currentCandidateQueue.filter((c) => c.status === 'approved');
+        const candidates = currentCandidateQueue.filter((c) => c.status === 'pending');
+        const sourceLabel = currentCandidateQueueSourceFile.startsWith('supabase:user_scholarships')
+          ? 'Source: your account queue'
+          : 'Source: local fallback queue';
+        approvedQueueMetaEl.textContent = `${readyCandidates.length} ready scholarship${readyCandidates.length === 1 ? '' : 's'}${hiddenSubmitted ? ` (${hiddenSubmitted} submitted hidden)` : ''}. ${sourceLabel}`;
+        queueMetaEl.textContent = `${candidates.length} pending candidate${candidates.length === 1 ? '' : 's'} (${hiddenRejected} rejected hidden${hiddenSubmitted ? `, ${hiddenSubmitted} submitted hidden` : ''}). ${sourceLabel}`;
+        if (rejectedQueueMetaEl) {
+          rejectedQueueMetaEl.textContent = `${rejectedCandidates.length} rejected scholarship${rejectedCandidates.length === 1 ? '' : 's'} available for review. ${sourceLabel}`;
+        }
+        approvedQueueEl.innerHTML = '';
+        queueEl.innerHTML = '';
+        if (rejectedQueueEl) {
+          rejectedQueueEl.innerHTML = '';
+        }
+
+        if (approvedQueuePanelEl) {
+          approvedQueuePanelEl.classList.toggle('view-hidden', readyCandidates.length === 0);
+        }
+        if (rejectedQueuePanelEl) {
+          rejectedQueuePanelEl.classList.toggle('view-hidden', rejectedCandidates.length === 0);
+        }
+
+        if (readyCandidates.length > 0) {
+          enableView('scholarship-matches');
+          const approvedSorted = [...readyCandidates].sort((a, b) => {
+            const diff = compareCandidatesByDeadline(a, b);
+            if (diff !== 0) return diff;
+            return (b.riskScore || 0) - (a.riskScore || 0);
+          });
+          approvedSorted.forEach((candidate) => {
+            approvedQueueEl.appendChild(renderQueueCandidate(candidate));
+          });
+        }
+
+        if (rejectedCandidates.length > 0 && rejectedQueueEl) {
+          const rejectedSorted = [...rejectedCandidates].sort((a, b) => {
+            const aUpdated = Date.parse(a.reviewedAt || a.updatedAt || 0) || 0;
+            const bUpdated = Date.parse(b.reviewedAt || b.updatedAt || 0) || 0;
+            return bUpdated - aUpdated;
+          });
+          rejectedSorted.forEach((candidate) => {
+            rejectedQueueEl.appendChild(renderQueueCandidate(candidate, { reviewMode: true }));
+          });
+        }
+
+        if (candidates.length === 0) {
+          queueEl.innerHTML = '<div class="hint">No pending candidates right now.</div>';
+          return;
+        }
+        enableView('scholarship-matches');
+
+        const sorted = [...candidates].sort((a, b) => {
+          const diff = compareCandidatesByDeadline(a, b);
+          if (diff !== 0) return diff;
+          return (b.riskScore || 0) - (a.riskScore || 0);
+        });
+
+        sorted.forEach((candidate) => {
+          queueEl.appendChild(renderQueueCandidate(candidate));
+        });
+      }
+
+      function candidateDeadlineSortValue(candidate) {
+        const rawDeadline = String(candidate?.deadline || '').trim();
+        if (!rawDeadline) {
+          return Number.POSITIVE_INFINITY;
+        }
+        const parsed = Date.parse(rawDeadline);
+        if (Number.isNaN(parsed)) {
+          return Number.POSITIVE_INFINITY;
+        }
+        return parsed;
+      }
+
+      function compareCandidatesByDeadline(left, right) {
+        const deadlineDiff = candidateDeadlineSortValue(left) - candidateDeadlineSortValue(right);
+        if (deadlineDiff !== 0) {
+          return deadlineDiff;
+        }
+        return String(left?.name || '').localeCompare(String(right?.name || ''));
+      }
+
+      function renderQueueCandidate(candidate, options = {}) {
         const card = document.createElement('div');
         card.className = 'candidate';
+        const reviewMode = options.reviewMode === true;
+        const canReview = candidate.status === 'pending' || (reviewMode && candidate.status === 'rejected');
+        const canContinue = candidate.status === 'approved' || candidate.status === 'submitted';
 
         const flags = (candidate.riskFlags || []).join(', ') || 'none';
         const reqMajors = candidate.inferredRequirements?.requiredMajors || candidate.eligibility?.allowedMajors || [];
@@ -1447,8 +2223,9 @@
             <textarea data-role="notes" placeholder="why approved/rejected"></textarea>
           </div>
           <div class="row" style="margin-top:10px;">
-            <button class="primary" data-action="approve">Approve</button>
-            <button class="danger" data-action="reject">Reject</button>
+            ${canReview ? `<button class="primary" data-action="approve">${candidate.status === 'rejected' ? 'Approve Instead' : 'Approve'}</button>` : ''}
+            ${canReview ? `<button class="danger" data-action="reject">${candidate.status === 'rejected' ? 'Keep Rejected' : 'Reject'}</button>` : ''}
+            ${canContinue ? '<button class="secondary" data-action="go-review">Continue to Review & Prepare</button>' : ''}
           </div>
         `;
 
@@ -1459,7 +2236,7 @@
 
           try {
             setAdminStatus(`Submitting ${decision} for ${candidate.id}...`);
-            await fetchJson('/admin/candidates/review', {
+            const response = await fetchJson('/admin/candidates/review', {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({
@@ -1471,75 +2248,251 @@
               })
             });
             setAdminStatus(`Saved ${decision} for ${candidate.id}`);
-            await loadCandidateQueue();
+            if (response?.reviewed?.id) {
+              currentCandidateQueue = currentCandidateQueue.map((item) => (
+                item.id === response.reviewed.id ? response.reviewed : item
+              ));
+              renderCandidateQueue(
+                currentCandidateQueue,
+                response.candidatesFile || currentCandidateQueueSourceFile
+              );
+            }
+            loadCandidateQueue().catch((err) => setAdminStatus(err.message || String(err), true));
           } catch (err) {
             setAdminStatus(err.message || String(err), true);
           }
         }
 
-        card.querySelector('[data-action="approve"]').addEventListener('click', () => submit('approve'));
-        card.querySelector('[data-action="reject"]').addEventListener('click', () => submit('reject'));
+        const approveBtn = card.querySelector('[data-action="approve"]');
+        if (approveBtn) {
+          approveBtn.addEventListener('click', () => submit('approve'));
+        }
+        const rejectBtn = card.querySelector('[data-action="reject"]');
+        if (rejectBtn) {
+          rejectBtn.addEventListener('click', () => submit('reject'));
+        }
+        const goReviewBtn = card.querySelector('[data-action="go-review"]');
+        if (goReviewBtn) {
+          goReviewBtn.addEventListener('click', () => {
+            currentReviewScholarship = {
+              id: candidate.id,
+              name: candidate.name,
+              sourceDomain: candidate.sourceDomain,
+              sourceUrl: candidate.sourceUrl || '',
+              requiresAccount: Boolean(candidate.requiresAccount)
+            };
+            renderReviewTargetPanel();
+            enableView('review-prepare');
+            showView('review-prepare');
+          });
+        }
 
         return card;
       }
 
       async function loadCandidateQueue() {
         const data = await fetchJson('/admin/candidates');
-        const allCandidates = data.candidates || [];
-        const hiddenRejected = allCandidates.filter((c) => c.status === 'rejected').length;
-        const candidates = allCandidates.filter((c) => c.status !== 'rejected');
+        renderCandidateQueue(data.candidates || [], data.sourceFile || '');
+        loadLatestDiscoveryDiagnostics().catch(() => {});
+      }
 
-        queueMetaEl.textContent = `${candidates.length} visible candidates (${hiddenRejected} rejected hidden). Source file: ${data.sourceFile}`;
-        queueEl.innerHTML = '';
+      function parseDiscoveryStdoutTail(stdoutTail = '') {
+        const lines = String(stdoutTail || '').split('\n').map((line) => line.trim()).filter(Boolean);
+        const parsed = {
+          queries: [],
+          searchPasses: [],
+          searchResults: [],
+          rerank: '',
+          frontier: '',
+          accepts: [],
+          rejects: [],
+          listPages: [],
+          historySkips: [],
+          historyRevisits: [],
+          skipSummary: [],
+          result: ''
+        };
 
-        if (candidates.length === 0) {
-          queueEl.innerHTML = '<div class="hint">No candidates yet.</div>';
+        lines.forEach((line) => {
+          if (line.startsWith('Queries: ')) {
+            parsed.queries = line.replace(/^Queries:\s*/, '').split(' | ').map((item) => item.trim()).filter(Boolean);
+            return;
+          }
+          if (line.startsWith('[search-pass]')) {
+            parsed.searchPasses.push(line);
+            return;
+          }
+          if (line.startsWith('[search] "') || line.startsWith('[search] collected')) {
+            parsed.searchResults.push(line);
+            return;
+          }
+          if (line.startsWith('[search-rerank]')) {
+            parsed.rerank = line;
+            return;
+          }
+          if (line.startsWith('[frontier]')) {
+            parsed.frontier = line;
+            return;
+          }
+          if (line.startsWith('[accept]')) {
+            parsed.accepts.push(line);
+            return;
+          }
+          if (line.startsWith('[reject]')) {
+            parsed.rejects.push(line);
+            return;
+          }
+          if (line.startsWith('[list-page]') || line.startsWith('[ai-list-page]')) {
+            parsed.listPages.push(line);
+            return;
+          }
+          if (line.startsWith('[history-skip]')) {
+            parsed.historySkips.push(line);
+            return;
+          }
+          if (line.startsWith('[history-revisit]')) {
+            parsed.historyRevisits.push(line);
+            return;
+          }
+          if (line.startsWith('[skip]')) {
+            parsed.skipSummary.push(line);
+            return;
+          }
+          if (line.startsWith('[result]')) {
+            parsed.result = line;
+          }
+        });
+
+        return parsed;
+      }
+
+      function formatDiscoveryDiagnostics(logEntry) {
+        if (!logEntry) {
+          return 'No discovery runs logged yet.';
+        }
+
+        const parsed = parseDiscoveryStdoutTail(logEntry.stdoutTail || '');
+        const counts = logEntry.workflowSummary?.counts || {};
+        const student = logEntry.workflowSummary?.student || {};
+        const timestamp = logEntry.timestamp ? new Date(logEntry.timestamp).toLocaleString() : 'unknown time';
+        const accepted = parsed.accepts.length ? parsed.accepts : ['(none accepted)'];
+        const rejected = parsed.rejects.length ? parsed.rejects : ['(no explicit reject lines)'];
+        const skipSummary = parsed.skipSummary.length ? parsed.skipSummary : ['(no skip summary lines)'];
+        const historySkips = parsed.historySkips.length ? parsed.historySkips.slice(0, 12) : ['(no history skips)'];
+        const listPages = parsed.listPages.length ? parsed.listPages.slice(0, 12) : ['(no list-page decisions logged)'];
+
+        return [
+          `Run: ${logEntry.runId || 'unknown'} | ${timestamp} | reason=${logEntry.reason || 'unknown'}`,
+          `Student: stage=${student.stage || 'missing'} | major=${student.major || 'missing'} | ethnicity=${student.ethnicity || 'missing'} | state=${student.state || 'missing'}`,
+          `Counts: searchResults=${counts.searchResults || 0}, fetchedPages=${counts.fetchedPages || 0}, discovered=${counts.discoveredCandidates || 0}, imported=${counts.importedCandidates || 0}, approved=${counts.approvedIds || 0}`,
+          parsed.result || '[result] unavailable',
+          '',
+          `Queries (${parsed.queries.length || 0}):`,
+          ...(parsed.queries.length ? parsed.queries.map((query) => `- ${query}`) : ['- (no query line found)']),
+          '',
+          'Search / Ranking:',
+          ...(parsed.searchPasses.length ? parsed.searchPasses : ['- (no search-pass lines found)']),
+          ...(parsed.searchResults.slice(0, 8).length ? parsed.searchResults.slice(0, 8) : ['- (no search lines found)']),
+          parsed.rerank || '- (no rerank line found)',
+          parsed.frontier || '- (no frontier line found)',
+          '',
+          `Accepted (${parsed.accepts.length}):`,
+          ...accepted,
+          '',
+          `Rejected / Filtered (${parsed.rejects.length} explicit reject lines):`,
+          ...rejected,
+          '',
+          'Skip Summary:',
+          ...skipSummary,
+          '',
+          `List-Page Decisions (${parsed.listPages.length}):`,
+          ...listPages,
+          '',
+          `History Skips (${parsed.historySkips.length}):`,
+          ...historySkips,
+          ...(parsed.historySkips.length > 12 ? [`... and ${parsed.historySkips.length - 12} more history-skip lines`] : []),
+          '',
+          parsed.historyRevisits.length
+            ? `History Revisits:\n${parsed.historyRevisits.join('\n')}`
+            : 'History Revisits:\n(none)',
+          '',
+          'Raw Runner Tail:',
+          logEntry.stdoutTail || '(empty)'
+        ].join('\n');
+      }
+
+      async function loadLatestDiscoveryDiagnostics() {
+        if (!discoveryDiagnosticsEl || !discoveryDiagnosticsMetaEl) {
           return;
         }
 
-        const sorted = [...candidates].sort((a, b) => {
-          const statusOrder = { pending: 0, approved: 1, rejected: 2 };
-          const diff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
-          if (diff !== 0) return diff;
-          return (b.riskScore || 0) - (a.riskScore || 0);
-        });
+        discoveryDiagnosticsMetaEl.textContent = 'Loading latest discovery diagnostics...';
+        const response = await fetchJson('/admin/logs/discovery?limit=20');
+        const logs = Array.isArray(response.logs) ? response.logs : [];
+        const preferredLog = logs.find((entry) => (
+          authState?.userId
+            ? entry?.userId === authState.userId
+            : true
+        )) || logs[0];
 
-        sorted.forEach((candidate) => {
-          queueEl.appendChild(renderQueueCandidate(candidate));
-        });
+        if (!preferredLog) {
+          discoveryDiagnosticsMetaEl.textContent = 'No discovery runs logged yet.';
+          discoveryDiagnosticsEl.textContent = 'No discovery diagnostics loaded yet.';
+          return;
+        }
+
+        const counts = preferredLog.workflowSummary?.counts || {};
+        discoveryDiagnosticsMetaEl.textContent = [
+          `Latest run: ${preferredLog.runId || 'unknown'}`,
+          `reason=${preferredLog.reason || 'unknown'}`,
+          `searchResults=${counts.searchResults || 0}`,
+          `fetchedPages=${counts.fetchedPages || 0}`,
+          `discovered=${counts.discoveredCandidates || 0}`,
+          `imported=${counts.importedCandidates || 0}`
+        ].join(' | ');
+        discoveryDiagnosticsEl.textContent = formatDiscoveryDiagnostics(preferredLog);
+        if (discoveryDiagnosticsPanelEl) {
+          discoveryDiagnosticsPanelEl.classList.remove('view-hidden');
+        }
       }
 
-      async function runAgentDiscovery() {
+      async function runAgentDiscovery(documentsOverride = null, options = {}) {
         let timer = null;
         try {
-          const files = Array.from(agentDocsEl.files || []);
-          if (files.length === 0) {
-            throw new Error('Upload at least one student document for agent discovery.');
+          let documents = Array.isArray(documentsOverride) ? documentsOverride : null;
+          if (!documents || documents.length === 0) {
+            documents = uploadedDocsPayload;
+          }
+          if (!Array.isArray(documents) || documents.length === 0) {
+            throw new Error('Run matching with at least one uploaded document first.');
           }
 
-          const studentAge = Number(document.getElementById('agentStudentAge').value || 18);
-          const discoveryMaxResults = Number(document.getElementById('agentMaxResults').value || 8);
-          const discoveryQueryBudget = Number(document.getElementById('agentQueryBudget').value || 6);
-          const codexTimeoutSec = Number(document.getElementById('agentCodexTimeoutSec').value || 240);
-          const domainRaw = document.getElementById('agentDomains').value || '';
+          const studentStage = String(discoveryStudentStageEl?.value || "starting_college");
+          const discoveryMaxResults = Number(discoveryMaxResultsEl?.value || 8);
+          const discoveryQueryBudget = Number(discoveryQueryBudgetEl?.value || 12);
+          const codexTimeoutSec = 240;
+          const domainRaw = discoveryDomainsEl?.value || '';
           const discoveryDomains = domainRaw
             .split(',')
             .map((d) => d.trim())
             .filter(Boolean);
-
-          const documents = await Promise.all(files.map(async (file, idx) => ({
-            documentId: `agent-doc-${idx + 1}`,
-            fileName: file.name,
-            contentBase64: await toBase64(file)
-          })));
+          const manualRerun = options?.manualRerun === true;
           agentUploadedDocsPayload = documents;
 
           const startedAt = Date.now();
-          runAgentDiscoveryBtnEl.disabled = true;
-          runAgentDiscoveryBtnEl.textContent = 'Running Agent Discovery...';
+          if (rerunDiscoveryBtnEl) {
+            rerunDiscoveryBtnEl.disabled = true;
+            rerunDiscoveryBtnEl.textContent = 'Running Discovery...';
+          }
           agentRunMetaEl.textContent = 'Agent discovery started.';
           agentLogEl.textContent = 'Running agent discovery workflow...';
           setAdminStatus('Running agent discovery...');
+          if (candidateQueuePanelEl) {
+            candidateQueuePanelEl.classList.add('view-hidden');
+          }
+          if (refreshQueueBtnEl) {
+            refreshQueueBtnEl.disabled = true;
+          }
 
           timer = setInterval(() => {
             const sec = Math.floor((Date.now() - startedAt) / 1000);
@@ -1550,11 +2503,13 @@
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
+              useCached: false,
               documents,
-              studentAge,
+              studentStage,
               discoveryMaxResults,
               discoveryQueryBudget,
               discoveryDomains,
+              manualRerun,
               codexTimeoutSec
             })
           }, 12 * 60 * 1000);
@@ -1562,13 +2517,25 @@
           if (timer) clearInterval(timer);
           setAdminStatus(result.message || 'Agent discovery completed.');
           agentRunMetaEl.textContent = 'Agent discovery completed.';
-
           const summary = result.summary || {};
           const counts = summary.counts || {};
+          const importedCount = Number.isFinite(Number(counts.importedCandidates))
+            ? Number(counts.importedCandidates)
+            : null;
+          const stageLabelByValue = {
+            starting_college: 'about to start college',
+            in_college: 'in college',
+            transfering_college: 'in college, about to transfer'
+          };
+          const stageValue = summary.student?.stage || 'missing';
+          const stageLabel = stageLabelByValue[stageValue] || stageValue;
           agentLogEl.textContent = [
             `Feature: ${summary.featureId || 'n/a'}`,
-            `Student: major=${summary.student?.major || 'missing'} | ethnicity=${summary.student?.ethnicity || 'missing'} | state=${summary.student?.state || 'missing'} | age=${summary.student?.age || 'missing'}`,
-            `Counts: discovered=${counts.discoveredCandidates || 0}, shortlisted=${counts.shortlistedCandidates || 0}, approved=${counts.approvedIds || 0}, autofillPlans=${counts.autofillPlans || 0}`,
+            `Student: stage=${stageLabel} | major=${summary.student?.major || 'missing'} | ethnicity=${summary.student?.ethnicity || 'missing'} | state=${summary.student?.state || 'missing'}`,
+            `Counts: discovered=${counts.discoveredCandidates || 0}${importedCount === null ? '' : `, imported=${importedCount}`}, shortlisted=${counts.shortlistedCandidates || 0}, approved=${counts.approvedIds || 0}, autofillPlans=${counts.autofillPlans || 0}`,
+            ...(summary.discoveryErrors?.length
+              ? ['', 'Discovery notes:', ...summary.discoveryErrors.map((line) => `- ${line}`)]
+              : []),
             '',
             'Shortlist Preview:',
             ...(summary.shortlistPreview || []).map((s) => `- ${s.name || s.id} | $${Number(s.awardAmount || 0).toLocaleString()} | ${s.deadline || 'no deadline'} | ${s.sourceDomain || ''}`),
@@ -1581,38 +2548,44 @@
           ].join('\n');
 
           await loadCandidateQueue();
+          enableView('scholarship-matches');
+          showView('scholarship-matches');
         } catch (err) {
           if (timer) clearInterval(timer);
           agentRunMetaEl.textContent = 'Agent discovery failed.';
           agentLogEl.textContent = `Error:\n${err.message || String(err)}`;
           setAdminStatus(err.message || String(err), true);
         } finally {
-          runAgentDiscoveryBtnEl.disabled = false;
-          runAgentDiscoveryBtnEl.textContent = 'Run Agent Discovery';
+          if (rerunDiscoveryBtnEl) {
+            rerunDiscoveryBtnEl.disabled = false;
+            rerunDiscoveryBtnEl.textContent = 'Rerun Discovery';
+          }
+          if (refreshQueueBtnEl) {
+            refreshQueueBtnEl.disabled = false;
+          }
+          if (candidateQueuePanelEl) {
+            candidateQueuePanelEl.classList.remove('view-hidden');
+          }
         }
       }
 
       async function runWithPayload(payload, message) {
         setStatus(message);
         runBtn.disabled = true;
+        if (uploadOnlyBtn) uploadOnlyBtn.disabled = true;
         applyEditsBtn.disabled = true;
 
         try {
-          const response = await fetch('/run-no-account-mvp-upload', {
+          const data = await fetchJson('/run-no-account-mvp-upload', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(payload)
           });
 
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Request failed');
-          }
-
-          latestSessionId = data.sessionId;
           latestMergedProfile = data.mergedProfile || null;
           populateReviewFields(data.mergedProfile);
           reviewPanel.style.display = 'block';
+          reviewPanel.classList.toggle('view-hidden', currentView !== 'upload-documents');
 
           resultsEl.innerHTML = '';
           resultsEl.appendChild(renderProfileCard(data.mergedProfile, data.appliedOverrides));
@@ -1628,41 +2601,23 @@
             (s) => `<strong>${escapeHtml(s.scholarshipId)}</strong>: ${escapeHtml(s.reason)}`
           ));
 
-          const rawCard = document.createElement('div');
-          rawCard.className = 'card';
-          rawCard.innerHTML = '<h3>Raw JSON Result</h3><div class="mono"></div>';
-          rawCard.querySelector('.mono').textContent = JSON.stringify(data, null, 2);
-          resultsEl.appendChild(rawCard);
-
+          enableView('scholarship-matches');
+          enableView('review-prepare');
+          showView('scholarship-matches');
           setStatus('Completed. You can edit fields in Human Review and rerun.');
         } catch (err) {
           setStatus(err.message || String(err), true);
         } finally {
           runBtn.disabled = false;
+          if (uploadOnlyBtn) uploadOnlyBtn.disabled = false;
           applyEditsBtn.disabled = false;
         }
       }
 
-      async function runInitial() {
+      async function readSelectedDocuments() {
         const files = document.getElementById('docs').files;
-        const sessionIdInput = document.getElementById('sessionId').value.trim();
-        const maxDrafts = Number(document.getElementById('maxDrafts').value || 5);
-
         if (!files || files.length === 0) {
-          if (agentUploadedDocsPayload && agentUploadedDocsPayload.length > 0) {
-            uploadedDocsPayload = agentUploadedDocsPayload;
-            const fallbackPayload = {
-              sessionId: sessionIdInput || undefined,
-              maxDrafts,
-              documents: uploadedDocsPayload,
-              overrides: {}
-            };
-            await runWithPayload(fallbackPayload, 'Using previously uploaded discovery documents for matching...');
-            return;
-          }
-
-          setStatus('Please select at least one document.', true);
-          return;
+          return [];
         }
 
         setStatus('Reading files...');
@@ -1675,16 +2630,81 @@
             contentBase64
           });
         }
+        return docs;
+      }
 
+      async function runInitial() {
+        if (!accessUnlocked) {
+          setStatus('Please sign in or continue as guest first.', true);
+          return;
+        }
+        const files = document.getElementById('docs').files;
+
+        if (!files || files.length === 0) {
+          if (agentUploadedDocsPayload && agentUploadedDocsPayload.length > 0) {
+            uploadedDocsPayload = agentUploadedDocsPayload;
+            const fallbackPayload = {
+              documents: uploadedDocsPayload,
+              overrides: {}
+            };
+            await runWithPayload(fallbackPayload, 'Using previously uploaded discovery documents for matching...');
+            return;
+          }
+
+          setStatus('Please select at least one document.', true);
+          return;
+        }
+
+        const docs = await readSelectedDocuments();
         uploadedDocsPayload = docs;
         const payload = {
-          sessionId: sessionIdInput || undefined,
-          maxDrafts,
           documents: docs,
           overrides: {}
         };
 
         await runWithPayload(payload, 'Running scholarship matching...');
+        await runAgentDiscovery(docs);
+      }
+
+      async function uploadDocumentsForLater() {
+        if (!accessUnlocked) {
+          setStatus('Please sign in or continue as guest first.', true);
+          return;
+        }
+
+        const docs = await readSelectedDocuments();
+        if (!docs || docs.length === 0) {
+          setStatus('Please select at least one document to upload for later.', true);
+          return;
+        }
+
+        uploadedDocsPayload = docs;
+        try {
+          const profileResult = await fetchJson('/admin/profile-from-upload', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              documents: docs,
+              enableAiEnrichment: true
+            })
+          }, 120000);
+          latestMergedProfile = profileResult.mergedProfile || null;
+          if (latestMergedProfile) {
+            populateReviewFields(latestMergedProfile);
+            reviewPanel.style.display = 'block';
+            reviewPanel.classList.toggle('view-hidden', currentView !== 'upload-documents');
+          }
+        } catch (err) {
+          setStatus(`Documents uploaded, but profile extraction failed: ${err.message || String(err)}`, true);
+          return;
+        }
+
+        renderReviewTargetPanel();
+        if (enabledViews.has('scholarship-matches')) {
+          setStatus('Documents uploaded and profile loaded for this session. You can continue from Scholarship Matches now and run matching later.');
+        } else {
+          setStatus('Documents uploaded and profile loaded for this session. Run matching whenever you are ready.');
+        }
       }
 
       async function applyEditsAndRerun() {
@@ -1693,10 +2713,7 @@
           return;
         }
 
-        const maxDrafts = Number(document.getElementById('maxDrafts').value || 5);
         const payload = {
-          sessionId: latestSessionId || document.getElementById('sessionId').value.trim() || undefined,
-          maxDrafts,
           documents: uploadedDocsPayload,
           overrides: collectOverrides()
         };
@@ -1704,38 +2721,295 @@
         await runWithPayload(payload, 'Applying human edits and rerunning matching...');
       }
 
-      if (matchingPanelEl && adminUnifiedPanelEl) {
-        const wrapEl = document.querySelector('.wrap');
-        const discoveryConfigPanelEl = adminUnifiedPanelEl.nextElementSibling;
-        const queuePanelEl = discoveryConfigPanelEl ? discoveryConfigPanelEl.nextElementSibling : null;
-        if (wrapEl && discoveryConfigPanelEl && queuePanelEl) {
-          wrapEl.insertBefore(adminUnifiedPanelEl, matchingPanelEl);
-          wrapEl.insertBefore(discoveryConfigPanelEl, matchingPanelEl);
-          wrapEl.insertBefore(queuePanelEl, matchingPanelEl);
+      async function syncAuthFromToken() {
+        if (!authState.accessToken) {
+          renderAuthState();
+          return;
+        }
+        try {
+          const me = await fetchJson('/auth/me');
+          if (me?.user?.id) {
+            setAuthState({
+              userId: me.user.id,
+              email: me.user.email || authState.email,
+              accessToken: authState.accessToken
+            });
+          } else {
+            setAuthState({ userId: '', email: '', accessToken: '' });
+          }
+        } catch {
+          setAuthState({
+            userId: '',
+            email: authState.email,
+            accessToken: ''
+          });
+          setAuthStatus('Saved login expired. Please sign in again.', true);
+        }
+      }
+
+      async function refreshQueueAfterAuth() {
+        await loadCandidateQueue().catch((err) => setAdminStatus(err.message || String(err), true));
+      }
+
+      async function handleAuthSignup() {
+        const email = String(authEmailEl.value || '').trim().toLowerCase();
+        const password = String(authPasswordEl.value || '');
+        if (!email || !password) {
+          setAuthStatus('Enter both email and password.', true);
+          return;
+        }
+        authSignUpBtnEl.disabled = true;
+        try {
+          const result = await fetchJson('/auth/signup', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          }, 30000);
+
+          setAuthState({
+            userId: result.userId || '',
+            email: result.email || email,
+            accessToken: result.accessToken || ''
+          });
+
+          if (result.emailConfirmationRequired) {
+            setAuthStatus('Signup created. Check email confirmation, then sign in.', false);
+          } else {
+            setAuthStatus('Signup complete and signed in.', false);
+          }
+          unlockUploadWorkbench(`signed in (${result.email || email})`);
+          await refreshQueueAfterAuth();
+        } catch (err) {
+          setAuthStatus(err.message || String(err), true);
+        } finally {
+          authSignUpBtnEl.disabled = false;
+        }
+      }
+
+      async function handleAuthSignin() {
+        const email = String(authEmailEl.value || '').trim().toLowerCase();
+        const password = String(authPasswordEl.value || '');
+        if (!email || !password) {
+          setAuthStatus('Enter both email and password.', true);
+          return;
+        }
+        authSignInBtnEl.disabled = true;
+        try {
+          const result = await fetchJson('/auth/signin', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          }, 30000);
+          setAuthState({
+            userId: result.userId || '',
+            email: result.email || email,
+            accessToken: result.accessToken || ''
+          });
+          setAuthStatus('Signed in.', false);
+          unlockUploadWorkbench(`signed in (${result.email || email})`);
+          await refreshQueueAfterAuth();
+        } catch (err) {
+          setAuthStatus(err.message || String(err), true);
+        } finally {
+          authSignInBtnEl.disabled = false;
+        }
+      }
+
+      async function handleAuthBootstrap() {
+        const email = String(authEmailEl.value || '').trim().toLowerCase();
+        const password = String(authPasswordEl.value || '');
+        if (!email) {
+          setAuthStatus('Enter an email for dev bootstrap.', true);
+          return;
+        }
+        authBootstrapBtnEl.disabled = true;
+        try {
+          const result = await fetchJson('/admin/dev/auth/bootstrap', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          }, 60000);
+          setAuthState({
+            userId: result.userId || '',
+            email: result.email || email,
+            accessToken: result.accessToken || ''
+          });
+          if (result.signInError) {
+            setAuthStatus(`Dev user ready (${result.userId}). Sign-in token unavailable: ${result.signInError}`, false);
+          } else {
+            setAuthStatus(`Dev user ready (${result.userId}).`, false);
+          }
+          unlockUploadWorkbench(`dev user (${result.email || email})`);
+          await refreshQueueAfterAuth();
+        } catch (err) {
+          setAuthStatus(err.message || String(err), true);
+        } finally {
+          authBootstrapBtnEl.disabled = false;
         }
       }
 
       runBtn.addEventListener('click', runInitial);
+      if (uploadOnlyBtn) {
+        uploadOnlyBtn.addEventListener('click', () => {
+          uploadDocumentsForLater().catch((err) => setStatus(err.message || String(err), true));
+        });
+      }
       applyEditsBtn.addEventListener('click', applyEditsAndRerun);
-      runAgentDiscoveryBtnEl.addEventListener('click', runAgentDiscovery);
+      authGuestBtnEl.addEventListener('click', async () => {
+        setAuthState({ userId: '', email: '', accessToken: '' });
+        authPasswordEl.value = '';
+        setAuthStatus('Guest mode enabled. Progress uses local fallback queue.', false);
+        unlockUploadWorkbench('guest (local fallback)');
+        await refreshQueueAfterAuth();
+      });
+      authContinueBtnEl.addEventListener('click', async () => {
+        const identity = authState.email || authState.userId || 'signed-in user';
+        unlockUploadWorkbench(`signed in (${identity})`);
+        await refreshQueueAfterAuth();
+      });
+      authSignUpBtnEl.addEventListener('click', handleAuthSignup);
+      authSignInBtnEl.addEventListener('click', handleAuthSignin);
+      authBootstrapBtnEl.addEventListener('click', handleAuthBootstrap);
+      authSignOutBtnEl.addEventListener('click', async () => {
+        setAuthState({ userId: '', email: '', accessToken: '' });
+        authPasswordEl.value = '';
+        setAuthStatus('Signed out.');
+        lockUploadWorkbench();
+        await refreshQueueAfterAuth();
+      });
+      sideLogoutBtnEl.addEventListener('click', async () => {
+        setAuthState({ userId: '', email: '', accessToken: '' });
+        authPasswordEl.value = '';
+        setAuthStatus('Signed out.');
+        lockUploadWorkbench();
+        renderAuthState();
+        showView('upload-documents', { force: true });
+        await refreshQueueAfterAuth();
+      });
+      rerunDiscoveryBtnEl.addEventListener('click', () => runAgentDiscovery(null, { manualRerun: true }));
       refreshQueueBtnEl.addEventListener('click', () => loadCandidateQueue().catch((e) => setAdminStatus(e.message || String(e), true)));
+      reviewOpenSourceBtnEl.addEventListener('click', () => {
+        if (!currentReviewScholarship?.sourceUrl) return;
+        window.open(currentReviewScholarship.sourceUrl, '_blank', 'noopener,noreferrer');
+      });
+      reviewStartGuidedBtnEl.addEventListener('click', async () => {
+        if (!currentReviewScholarship?.sourceUrl) {
+          setStatus('Select an approved scholarship with an application URL first.', true);
+          submissionLiveStatusEl.textContent = 'Select an approved scholarship with an application URL first.';
+          return;
+        }
+        try {
+          const hasProfile = Boolean(latestMergedProfile);
+          reviewStartGuidedBtnEl.disabled = true;
+          reviewStartGuidedBtnEl.textContent = 'Starting...';
+          setStatus(
+            hasProfile
+              ? `Starting guided submission for ${currentReviewScholarship.name}...`
+              : `Starting guided submission for ${currentReviewScholarship.name} with limited autofill...`
+          );
+          const result = await fetchJson('/admin/submission/start', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              sourceUrl: currentReviewScholarship.sourceUrl,
+              payload: buildBasePayloadFromProfile(latestMergedProfile || {})
+            })
+          }, 120000);
+
+          submissionLiveScholarshipEl.textContent = `The Archivist is currently filling your application for ${currentReviewScholarship.name}.`;
+          submissionLiveTaskEl.textContent = result.accountRequired
+            ? 'Waiting for account setup'
+            : `Step ${result.stepNumber || 1}: ${result.currentUrl || 'Guided submission page'}`;
+          submissionLiveStatusEl.textContent = result.reviewMessage || 'Guided submission active.';
+
+          enableView('submission-progress');
+          showView('submission-progress');
+          if (result.accountRequired) {
+            setStatus(`Guided submission started for ${currentReviewScholarship.name}. Complete account setup/login in browser, then continue.`);
+          } else {
+            setStatus(
+              hasProfile
+                ? `Guided submission started for ${currentReviewScholarship.name}.`
+                : `Guided submission started for ${currentReviewScholarship.name} with limited autofill.`
+            );
+          }
+        } catch (err) {
+          setStatus(err.message || String(err), true);
+          submissionLiveStatusEl.textContent = err.message || String(err);
+        } finally {
+          reviewStartGuidedBtnEl.textContent = 'Start Guided Submission';
+          renderReviewTargetPanel();
+        }
+      });
       clearBtn.addEventListener('click', () => {
         uploadedDocsPayload = null;
-        latestSessionId = null;
         latestMergedProfile = null;
+        currentReviewScholarship = null;
         draftFieldEdits = {};
         draftFieldFiles = {};
         draftFieldRequirements = {};
         draftSubmissionState = {};
         draftGuidedSessions = {};
+        activeGuidedDraftKey = null;
+        Object.keys(draftMarkSubmittedHandlers).forEach((key) => delete draftMarkSubmittedHandlers[key]);
         reviewPanel.style.display = 'none';
+        reviewPanel.classList.add('view-hidden');
         resultsEl.innerHTML = '';
+        submissionLiveScholarshipEl.textContent = 'No active guided session yet. Start guided submission from a scholarship card above.';
+        submissionLiveTaskEl.textContent = 'Idle';
+        submissionLiveStatusEl.textContent = 'Bot is idle. Once started, page-level status appears here.';
+        renderReviewTargetPanel();
+        enabledViews.clear();
+        enabledViews.add('upload-documents');
+        showView('upload-documents', { force: true });
         setStatus('');
       });
 
-      loadCandidateQueue()
-        .then(() => setAdminStatus('Candidate queue ready.'))
-        .catch((err) => setAdminStatus(err.message || String(err), true));
+      submissionMarkCompleteBtnEl.addEventListener('click', async () => {
+        try {
+          submissionMarkCompleteBtnEl.disabled = true;
+          submissionMarkCompleteBtnEl.textContent = 'Marking...';
+          submissionLiveStatusEl.textContent = 'Marking scholarship submission as complete...';
+          const selectedScholarshipId = String(currentReviewScholarship?.id || '').trim();
+          if (selectedScholarshipId) {
+            await markScholarshipSubmissionCompleteById(
+              selectedScholarshipId,
+              currentReviewScholarship?.name || 'Selected scholarship'
+            );
+          } else {
+            const resolvedDraftKey = resolveSubmissionTargetDraftKey();
+            if (!resolvedDraftKey || !draftMarkSubmittedHandlers[resolvedDraftKey]) {
+              throw new Error('Select a scholarship in Review & Prepare before marking it complete.');
+            }
+            await draftMarkSubmittedHandlers[resolvedDraftKey]();
+          }
+          submissionLiveTaskEl.textContent = 'Idle';
+          submissionLiveStatusEl.textContent = 'Submission marked complete.';
+        } catch (err) {
+          submissionLiveStatusEl.textContent = err.message || String(err);
+          setStatus(err.message || String(err), true);
+        } finally {
+          submissionMarkCompleteBtnEl.disabled = false;
+          submissionMarkCompleteBtnEl.textContent = 'Mark Submission as Complete';
+        }
+      });
+
+      submissionJumpBtnEl.addEventListener('click', () => {
+        enableView('review-prepare');
+        showView('review-prepare');
+      });
+
+      const initialHash = String(window.location.hash || '').replace(/^#/, '');
+      showView(enabledViews.has(initialHash) ? initialHash : 'upload-documents', { force: true });
+      renderReviewTargetPanel();
+      lockUploadWorkbench();
+      renderAuthState();
+      syncAuthFromToken()
+        .finally(() => {
+          loadCandidateQueue()
+            .then(() => setAdminStatus('Candidate queue ready.'))
+            .catch((err) => setAdminStatus(err.message || String(err), true));
+        });
     </script>
   </body>
 </html>

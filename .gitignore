@@ -4,5 +4,9 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+.env
+.env.local
+.env.*
+!.env.example
 noe_uc_parse_output.txt
 data/_reset_backups/

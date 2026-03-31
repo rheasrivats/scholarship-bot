@@ -198,12 +198,15 @@ export async function loadCandidates({ forceReload = false } = {}) {
 }
 
 export async function importCandidates(rawCandidates, existingScholarships = [], options = {}) {
-  if (!Array.isArray(rawCandidates) || rawCandidates.length === 0) {
-    throw new Error("Candidates payload must be a non-empty array");
+  if (!Array.isArray(rawCandidates)) {
+    throw new Error("Candidates payload must be an array");
   }
 
   const existing = await loadCandidates();
   const replacePending = Boolean(options.replacePending);
+  if (rawCandidates.length === 0 && !replacePending) {
+    throw new Error("Candidates payload must be a non-empty array unless replacePending is true");
+  }
   const preserved = replacePending
     ? existing.filter((candidate) => candidate.status !== "pending")
     : existing;
@@ -275,6 +278,32 @@ export async function reviewCandidate({ id, decision, reviewer = "", notes = "",
   await writeCandidates(candidates);
 
   return reviewed;
+}
+
+export async function markCandidateSubmitted({ id, reviewer = "", notes = "" }) {
+  const candidates = await loadCandidates();
+  const idx = candidates.findIndex((candidate) => candidate.id === id);
+  if (idx < 0) {
+    throw new Error(`Candidate not found: ${id}`);
+  }
+
+  const current = candidates[idx];
+  if (current.status === "rejected") {
+    throw new Error("Rejected candidates cannot be marked as submitted");
+  }
+
+  const submitted = {
+    ...current,
+    status: "submitted",
+    reviewNotes: notes || current.reviewNotes || "",
+    reviewedBy: reviewer || current.reviewedBy || "",
+    reviewedAt: new Date().toISOString()
+  };
+
+  candidates[idx] = submitted;
+  await writeCandidates(candidates);
+
+  return submitted;
 }
 
 export function candidateToScholarshipRecord(candidate) {

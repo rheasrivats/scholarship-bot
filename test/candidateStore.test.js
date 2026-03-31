@@ -2,7 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { assessCandidateRisk, importCandidates, loadCandidates, normalizeCandidateRecord, reviewCandidate } from "../src/data/candidateStore.js";
+import {
+  assessCandidateRisk,
+  importCandidates,
+  loadCandidates,
+  markCandidateSubmitted,
+  normalizeCandidateRecord,
+  reviewCandidate
+} from "../src/data/candidateStore.js";
 
 test("assessCandidateRisk flags suspicious domains", () => {
   const risk = assessCandidateRisk({
@@ -80,6 +87,70 @@ test("importCandidates with replacePending refreshes pending queue and preserves
     const after = await loadCandidates({ forceReload: true });
     assert.ok(after.some((c) => c.name === "Pending One" && c.status === "approved"));
     assert.ok(!after.some((c) => c.name === "Pending Two"));
+    assert.ok(after.some((c) => c.name === "Fresh Pending" && c.status === "pending"));
+  } finally {
+    await fs.writeFile(candidatePath, originalRaw, "utf8");
+    await loadCandidates({ forceReload: true });
+  }
+});
+
+test("importCandidates with empty list and replacePending clears pending queue but preserves reviewed records", async () => {
+  const candidatePath = path.resolve(process.cwd(), "data/scholarships.candidates.json");
+  const originalRaw = await fs.readFile(candidatePath, "utf8");
+
+  try {
+    const firstImport = await importCandidates([
+      { name: "Pending Keep", sourceDomain: "example.org", sourceUrl: "https://example.org/keep" },
+      { name: "Pending Clear", sourceDomain: "example.org", sourceUrl: "https://example.org/clear" }
+    ], [], { replacePending: true });
+
+    await reviewCandidate({
+      id: firstImport[0].id,
+      decision: "approve",
+      reviewer: "test",
+      notes: "preserve approved"
+    });
+
+    const cleared = await importCandidates([], [], { replacePending: true });
+    assert.deepEqual(cleared, []);
+
+    const after = await loadCandidates({ forceReload: true });
+    assert.ok(after.some((c) => c.name === "Pending Keep" && c.status === "approved"));
+    assert.ok(!after.some((c) => c.name === "Pending Clear"));
+    assert.ok(!after.some((c) => c.status === "pending"));
+  } finally {
+    await fs.writeFile(candidatePath, originalRaw, "utf8");
+    await loadCandidates({ forceReload: true });
+  }
+});
+
+test("markCandidateSubmitted persists submitted status and future imports do not requeue it", async () => {
+  const candidatePath = path.resolve(process.cwd(), "data/scholarships.candidates.json");
+  const originalRaw = await fs.readFile(candidatePath, "utf8");
+
+  try {
+    const imported = await importCandidates([
+      { name: "Submitted Keep", sourceDomain: "example.org", sourceUrl: "https://example.org/submitted-keep" }
+    ], [], { replacePending: true });
+
+    const submitted = await markCandidateSubmitted({
+      id: imported[0].id,
+      reviewer: "test",
+      notes: "user already submitted"
+    });
+
+    assert.equal(submitted.status, "submitted");
+
+    const rerun = await importCandidates([
+      { name: "Submitted Keep", sourceDomain: "example.org", sourceUrl: "https://example.org/submitted-keep" },
+      { name: "Fresh Pending", sourceDomain: "example.org", sourceUrl: "https://example.org/fresh-after-submit" }
+    ], [], { replacePending: true });
+
+    assert.equal(rerun.length, 1);
+    assert.equal(rerun[0].name, "Fresh Pending");
+
+    const after = await loadCandidates({ forceReload: true });
+    assert.ok(after.some((c) => c.name === "Submitted Keep" && c.status === "submitted"));
     assert.ok(after.some((c) => c.name === "Fresh Pending" && c.status === "pending"));
   } finally {
     await fs.writeFile(candidatePath, originalRaw, "utf8");

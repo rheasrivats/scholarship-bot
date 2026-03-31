@@ -44,7 +44,7 @@ npm run api
 python agent_orchestration/run_workflow.py \
   --doc /absolute/path/to/student_uc.pdf \
   --doc /absolute/path/to/student_private.docx \
-  --student-age 18 \
+  --student-stage starting_college \
   --agent-runtime codex-cli \
   --interaction-runtime auto \
   --discovery-max-results 8 \

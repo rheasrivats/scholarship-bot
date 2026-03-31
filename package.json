@@ -11,6 +11,7 @@
     "api": "node src/api/server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
     "pdf-parse": "^2.4.3",
     "playwright": "^1.54.1"
   }

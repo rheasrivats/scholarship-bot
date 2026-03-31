@@ -64,6 +64,14 @@ Optional flags:
 
 ## Run Local API
 
+Optional Supabase env (local file supported):
+
+```bash
+cp .env.example .env.local
+# fill SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
+# optional for local dev fallback: SUPABASE_DEV_USER_ID
+```
+
 ```bash
 npm run api
 ```
@@ -81,6 +89,12 @@ From the UI:
 
 Endpoints:
 - `GET /health`
+- `GET /admin/supabase/status` (connection/config check + candidate store mode)
+- `GET /admin/logs/discovery?limit=30` (recent discovery run diagnostics)
+- `POST /auth/signup`
+- `POST /auth/signin`
+- `GET /auth/me`
+- `POST /admin/dev/auth/bootstrap` (create/use a dev user quickly)
 - `GET /scholarships`
 - `POST /run-no-account-mvp`
 - `POST /run-no-account-mvp-upload` (used by the browser UI)
@@ -150,3 +164,26 @@ If you want an agentic workflow (finder agent + reviewer + autofill agent), use 
 - `agent_orchestration/run_workflow.py`
 
 This integrates with current Node endpoints while introducing phased multi-agent orchestration via `iriai-compose`.
+Supabase candidate persistence notes:
+- Candidate endpoints use Supabase when these are set:
+  - `SUPABASE_URL`
+  - `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`)
+  - user identity via one of:
+    - `Authorization: Bearer <supabase_access_token>` (preferred)
+    - request header `x-user-id` (dev/internal use)
+    - `SUPABASE_DEV_USER_ID` (fallback dev mode)
+- If any are missing, API falls back to local JSON files in `data/`.
+
+Agent discovery run logs:
+- Backend writes structured JSONL logs to `data/discovery-runs.log.jsonl`.
+- Each entry includes run mode (`fresh`/`cached`), user store mode, discovered/imported counts, and reason codes such as:
+  - `imported_new_candidates`
+  - `agent_returned_zero_candidates`
+  - `all_discovered_candidates_skipped_or_deduped`
+  - `cached_mode_reused_existing_queue`
+  - `discovery_process_failed`
+
+Deterministic discovery notes:
+- `POST /admin/agent-discovery` now uses a deterministic pipeline: profile-aware query generation, search-result URL collection, parallel page fetches, and rule-based extraction before import.
+- Default search source is DuckDuckGo HTML (`DISCOVERY_SEARCH_ENDPOINT`), with optional narrow AI ambiguity resolution gated by `DISCOVERY_ENABLE_AI_ASSIST=1`.
+- Discovery diagnostics returned by the API include generated queries, fetched-page counts, and extraction errors in the log tails.

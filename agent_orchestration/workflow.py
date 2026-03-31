@@ -26,6 +26,42 @@ class ScholarshipWorkflowState(BaseModel):
     shortlisted_candidates: list[dict[str, Any]] = Field(default_factory=list)
     approved_ids: list[str] = Field(default_factory=list)
     autofill_plan: list[dict[str, Any]] = Field(default_factory=list)
+    agent_discovered_count: int = 0
+    imported_candidate_count: int = 0
+    discovery_errors: list[str] = Field(default_factory=list)
+
+
+class DiscoveryEligibility(BaseModel):
+    minGpa: float | None = None
+    allowedMajors: list[str] = Field(default_factory=list)
+    allowedEthnicities: list[str] = Field(default_factory=list)
+
+
+class DiscoveryInferredRequirements(BaseModel):
+    requiredMajors: list[str] = Field(default_factory=list)
+    requiredEthnicities: list[str] = Field(default_factory=list)
+    requiredStates: list[str] = Field(default_factory=list)
+    minAge: int | None = None
+    maxAge: int | None = None
+    requirementStatements: list[str] = Field(default_factory=list)
+
+
+class DiscoveryCandidate(BaseModel):
+    name: str
+    sourceDomain: str
+    sourceUrl: str = ""
+    sourceName: str = ""
+    awardAmount: float = 0
+    deadline: str = ""
+    requiresAccount: bool = False
+    estimatedEffortMinutes: int = 30
+    eligibility: DiscoveryEligibility = Field(default_factory=DiscoveryEligibility)
+    inferredRequirements: DiscoveryInferredRequirements = Field(default_factory=DiscoveryInferredRequirements)
+    essayPrompts: list[str] = Field(default_factory=list)
+
+
+class DiscoverySearchResult(BaseModel):
+    candidates: list[DiscoveryCandidate] = Field(default_factory=list)
 
 
 @dataclass
@@ -185,41 +221,67 @@ class DiscoverAndShortlistPhase(Phase):
         discovery_max_results = int(meta.get("discovery_max_results", 8) or 8)
         discovery_query_budget = int(meta.get("discovery_query_budget", 6) or 6)
         discovery_domains = meta.get("discovery_domains") or []
+        student_stage = str(meta.get("student_stage") or "").strip()
+        student_age = meta.get("student_age")
 
         compact_profile = _compact_student_profile_for_discovery(state.student_profile)
-        domain_instruction = (
-            f"Limit search to these domains when possible: {', '.join(discovery_domains)}.\n"
-            if discovery_domains
-            else ""
+        if student_stage:
+            compact_profile["studentStage"] = student_stage
+        if student_age is not None:
+            compact_profile["studentAgeHint"] = student_age
+        discovered = []
+        state.discovery_errors = []
+        attempts = _build_discovery_attempts(
+            discovery_max_results=discovery_max_results,
+            discovery_query_budget=discovery_query_budget,
+            discovery_domains=discovery_domains,
+            compact_profile=compact_profile,
         )
 
-        discovery_prompt = (
-            f"Use web search to find up to {discovery_max_results} currently-open U.S. scholarships that match this student. "
-            f"Use at most {discovery_query_budget} search queries total. "
-            "Return ONLY a JSON array. Each item must contain: "
-            "name, sourceDomain, sourceUrl, sourceName, awardAmount (number), deadline (string or empty), "
-            "requiresAccount (boolean), estimatedEffortMinutes (number), "
-            "eligibility { minGpa|null, allowedMajors[], allowedEthnicities[] }, "
-            "inferredRequirements { requiredMajors[], requiredEthnicities[], requiredStates[], minAge|null, maxAge|null, requirementStatements[] }, "
-            "essayPrompts[].\n\n"
-            "Do not include clearly closed scholarships. Prefer higher-award and high-fit opportunities.\n\n"
-            f"{domain_instruction}"
-            f"Student profile:\n{json.dumps(compact_profile, indent=2)}"
-        )
+        for attempt_index, attempt in enumerate(attempts, start=1):
+            print(
+                "[workflow] Discovery attempt "
+                f"{attempt_index}/{len(attempts)}: results<={attempt['max_results']} "
+                f"queries<={attempt['query_budget']}",
+                flush=True,
+            )
+            try:
+                discovered_result = await runner.run(
+                    Ask(
+                        actor=planner_agent,
+                        prompt=attempt["prompt"],
+                        output_type=DiscoverySearchResult,
+                    ),
+                    feature,
+                )
+                await runner.artifacts.put(
+                    f"agent_discovered_attempt_{attempt_index}",
+                    discovered_result.model_dump_json(indent=2),
+                    feature=feature,
+                )
+                discovered = [candidate.model_dump() for candidate in discovered_result.candidates]
+                if discovered:
+                    break
+                state.discovery_errors.append(f"attempt_{attempt_index}:empty_result")
+                print(f"[workflow] Discovery attempt {attempt_index} returned 0 candidates", flush=True)
+            except Exception as exc:
+                error_summary = _summarize_discovery_exception(exc)
+                state.discovery_errors.append(f"attempt_{attempt_index}:{error_summary}")
+                print(
+                    f"[workflow] Discovery attempt {attempt_index} failed: {error_summary}",
+                    flush=True,
+                )
+                if _looks_like_timeout(exc) or attempt_index == len(attempts):
+                    raise
 
-        discovered_raw = await runner.run(
-            Ask(actor=planner_agent, prompt=discovery_prompt),
-            feature,
-        )
-
-        discovered = _parse_candidate_json(discovered_raw)
-        await runner.artifacts.put("agent_discovered_raw", str(discovered_raw), feature=feature)
+        state.agent_discovered_count = len(discovered)
         await runner.artifacts.put("agent_discovered_count", str(len(discovered)), feature=feature)
         print(f"[workflow] Agent discovered candidates: {len(discovered)}", flush=True)
 
         import_result = await client.import_candidates(discovered, replace_pending=True)
+        state.imported_candidate_count = len(import_result.get("imported", []))
         print(
-            f"[workflow] Imported into queue: {len(import_result.get('imported', []))} "
+            f"[workflow] Imported into queue: {state.imported_candidate_count} "
             f"(source: {import_result.get('sourceFile', 'n/a')})",
             flush=True,
         )
@@ -307,32 +369,76 @@ class ScholarshipAgentWorkflow(Workflow):
         return [ParseStudentPhase, DiscoverAndShortlistPhase, AutofillPlanPhase]
 
 
-def _parse_candidate_json(raw: Any) -> list[dict[str, Any]]:
-    text = str(raw or "").strip()
+def _build_discovery_attempts(
+    *,
+    discovery_max_results: int,
+    discovery_query_budget: int,
+    discovery_domains: list[str],
+    compact_profile: dict[str, Any],
+) -> list[dict[str, Any]]:
+    primary_max_results = max(1, discovery_max_results)
+    primary_query_budget = max(1, discovery_query_budget)
+    attempts = [
+        {
+            "max_results": primary_max_results,
+            "query_budget": primary_query_budget,
+        }
+    ]
+
+    fallback_max_results = min(primary_max_results, 4)
+    fallback_query_budget = min(primary_query_budget, 3)
+    if fallback_max_results < primary_max_results or fallback_query_budget < primary_query_budget:
+        attempts.append(
+            {
+                "max_results": max(1, fallback_max_results),
+                "query_budget": max(1, fallback_query_budget),
+            }
+        )
+
+    for attempt in attempts:
+        attempt["prompt"] = _build_discovery_prompt(
+            max_results=attempt["max_results"],
+            query_budget=attempt["query_budget"],
+            discovery_domains=discovery_domains,
+            compact_profile=compact_profile,
+        )
+    return attempts
+
+
+def _build_discovery_prompt(
+    *,
+    max_results: int,
+    query_budget: int,
+    discovery_domains: list[str],
+    compact_profile: dict[str, Any],
+) -> str:
+    domain_instruction = (
+        f"Prefer these domains when they have matching opportunities: {', '.join(discovery_domains)}.\n"
+        if discovery_domains
+        else ""
+    )
+    return (
+        f"Use web search to find up to {max_results} currently-open U.S. scholarships that match this student. "
+        f"Use at most {query_budget} search queries total.\n\n"
+        "Be selective: prefer high-fit, currently-open scholarships with clear eligibility details. "
+        "Exclude clearly closed scholarships, sweepstakes, and generic scholarship listing pages unless the page itself is the application source.\n\n"
+        "Return a JSON object with a single key `candidates`, whose value is an array of scholarships matching the schema. "
+        "Use empty strings, false, 0, null, or [] when data is unavailable. Do not include commentary.\n\n"
+        f"{domain_instruction}"
+        f"Student profile:\n{json.dumps(compact_profile, indent=2)}"
+    )
+
+
+def _looks_like_timeout(exc: Exception) -> bool:
+    text = _summarize_discovery_exception(exc).lower()
+    return "timed out" in text or "timeout" in text
+
+
+def _summarize_discovery_exception(exc: Exception) -> str:
+    text = str(exc).strip()
     if not text:
-        return []
-
-    # Try strict parse first.
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, list):
-            return [item for item in parsed if isinstance(item, dict)]
-    except json.JSONDecodeError:
-        pass
-
-    # Fallback: extract first JSON array block.
-    start = text.find("[")
-    end = text.rfind("]")
-    if start >= 0 and end > start:
-        snippet = text[start : end + 1]
-        try:
-            parsed = json.loads(snippet)
-            if isinstance(parsed, list):
-                return [item for item in parsed if isinstance(item, dict)]
-        except json.JSONDecodeError:
-            return []
-
-    return []
+        return exc.__class__.__name__
+    return " ".join(text.split())
 
 
 def _compact_student_profile_for_discovery(profile: dict[str, Any]) -> dict[str, Any]:
@@ -361,6 +467,7 @@ def build_feature(
     feature_id: str,
     document_paths: list[str],
     api_base_url: str = "http://localhost:3000",
+    student_stage: str | None = None,
     student_age: int | None = None,
     interaction_resolver: str = "auto",
     discovery_max_results: int = 8,
@@ -377,6 +484,7 @@ def build_feature(
         metadata={
             "api_base_url": api_base_url,
             "documents": _encode_documents_b64(document_paths),
+            "student_stage": student_stage,
             "student_age": student_age,
             "interaction_resolver": interaction_resolver,
             "discovery_max_results": discovery_max_results,

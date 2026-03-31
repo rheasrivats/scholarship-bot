@@ -113,6 +113,11 @@ def parse_args(argv: Sequence[str] | None = None):
     )
     parser.add_argument("--feature-id", default="feature-scholarship-1")
     parser.add_argument("--api-base", default="http://localhost:3000")
+    parser.add_argument(
+        "--student-stage",
+        choices=["starting_college", "in_college", "transfering_college"],
+        default=None,
+    )
     parser.add_argument("--student-age", type=int, default=None)
     parser.add_argument("--discovery-max-results", type=int, default=8)
     parser.add_argument("--discovery-query-budget", type=int, default=6)
@@ -189,6 +194,7 @@ async def main(argv: Sequence[str] | None = None):
         feature_id=args.feature_id,
         document_paths=args.doc,
         api_base_url=args.api_base,
+        student_stage=args.student_stage,
         student_age=args.student_age,
         interaction_resolver=args.interaction_runtime,
         discovery_max_results=args.discovery_max_results,
@@ -211,16 +217,19 @@ async def main(argv: Sequence[str] | None = None):
             "major": personal.get("intendedMajor"),
             "ethnicity": personal.get("ethnicity"),
             "state": personal.get("state"),
+            "stage": feature.metadata.get("student_stage"),
             "age": personal.get("age"),
         },
         "counts": {
-            "discoveredCandidates": len(final_state.discovered_candidates),
+            "discoveredCandidates": int(final_state.agent_discovered_count),
+            "importedCandidates": int(final_state.imported_candidate_count),
             "shortlistedCandidates": len(final_state.shortlisted_candidates),
             "approvedIds": len(final_state.approved_ids),
             "autofillPlans": len(final_state.autofill_plan),
         },
         "discoveryOnly": args.discovery_only,
         "approvedIds": final_state.approved_ids,
+        "discoveryErrors": list(final_state.discovery_errors),
         "shortlistPreview": [
             {
                 "id": c.get("id"),
