@@ -15,6 +15,9 @@ const SUSPICIOUS_DOMAIN_KEYWORDS = [
 ];
 
 const HIGH_RISK_TLDS = [".xyz", ".click", ".top", ".buzz", ".work"];
+const DEPRECATED_RISK_FLAG_PREFIXES = [
+  "already_exists_in_vetted:"
+];
 
 function normalizeList(value) {
   if (Array.isArray(value)) {
@@ -38,6 +41,15 @@ function toBoolean(value) {
   }
 
   return Boolean(value);
+}
+
+export function normalizeRiskFlags(value) {
+  const source = Array.isArray(value) ? value : [];
+  const normalized = source
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((flag) => !DEPRECATED_RISK_FLAG_PREFIXES.some((prefix) => flag.startsWith(prefix)));
+  return Array.from(new Set(normalized));
 }
 
 function slugify(value) {
@@ -83,7 +95,7 @@ export function assessCandidateRisk(rawCandidate, existingScholarships = []) {
 
   const duplicate = existingScholarships.find((s) => s.sourceDomain === sourceDomain || s.id === rawCandidate.id);
   if (duplicate) {
-    flags.push(`already_exists_in_vetted:${duplicate.id}`);
+    flags.push(`already_exists_in_catalog:${duplicate.id}`);
     score += 20;
   }
 
@@ -107,7 +119,7 @@ export function assessCandidateRisk(rawCandidate, existingScholarships = []) {
 
   return {
     riskScore: boundedScore,
-    riskFlags: flags,
+    riskFlags: normalizeRiskFlags(flags),
     recommendedTier
   };
 }
@@ -162,13 +174,14 @@ export function normalizeCandidateRecord(rawCandidate, existingScholarships = []
     },
     essayPrompts: normalizeList(rawCandidate.essayPrompts),
     formFields: Array.isArray(rawCandidate.formFields) ? rawCandidate.formFields : [],
+    userSuggested: toBoolean(rawCandidate.userSuggested),
     status: "pending",
     reviewNotes: "",
     reviewedBy: "",
     reviewedAt: "",
     createdAt: new Date().toISOString(),
     riskScore: risk.riskScore,
-    riskFlags: risk.riskFlags,
+    riskFlags: normalizeRiskFlags(risk.riskFlags),
     recommendedTier: risk.recommendedTier
   };
 }
@@ -193,7 +206,11 @@ export async function loadCandidates({ forceReload = false } = {}) {
     return cachedCandidates;
   }
 
-  cachedCandidates = await loadRawCandidates();
+  const records = await loadRawCandidates();
+  cachedCandidates = records.map((candidate) => ({
+    ...candidate,
+    riskFlags: normalizeRiskFlags(candidate?.riskFlags)
+  }));
   return cachedCandidates;
 }
 
@@ -304,6 +321,25 @@ export async function markCandidateSubmitted({ id, reviewer = "", notes = "" }) 
   await writeCandidates(candidates);
 
   return submitted;
+}
+
+export async function updateCandidateById({ id, updates = {} }) {
+  const candidateId = String(id || "").trim();
+  if (!candidateId) {
+    throw new Error("id is required");
+  }
+  const candidates = await loadCandidates();
+  const idx = candidates.findIndex((candidate) => candidate.id === candidateId);
+  if (idx < 0) {
+    throw new Error(`Candidate not found: ${candidateId}`);
+  }
+  const next = {
+    ...candidates[idx],
+    ...(updates && typeof updates === "object" ? updates : {})
+  };
+  candidates[idx] = next;
+  await writeCandidates(candidates);
+  return next;
 }
 
 export function candidateToScholarshipRecord(candidate) {

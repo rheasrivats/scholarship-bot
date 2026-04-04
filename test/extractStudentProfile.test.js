@@ -17,6 +17,25 @@ Latin American / Latino
   assert.equal(profile.personalInfo.ethnicity, "hispanic/latino");
 });
 
+test("extractProfileFromText extracts UC major from Choose majors and avoids plural heading false positives", () => {
+  const text = `
+Contact information
+State
+California
+
+Campuses & Majors
+Choose majors
+Campus Major School Alternate Major
+UC Davis Mechanical Engineering, B.S. College of Engineering Undeclared — College of Engineering
+UC Riverside Mechanical Engineering, B.S. Bourns College of Engineering Not selected
+`;
+
+  const profile = extractProfileFromText(text, "uc-major-sample");
+  assert.equal(profile.personalInfo.state, "California");
+  assert.match(String(profile.personalInfo.intendedMajor || ""), /mechanical engineering/i);
+  assert.notEqual(profile.personalInfo.intendedMajor, "s");
+});
+
 test("extractProfileFromText pulls ethnicity and major from noe_uc_app.pdf", async () => {
   const filePath = "/Users/rheasrivats/Downloads/noe_uc_app.pdf";
   assert.equal(fs.existsSync(filePath), true, "Expected test PDF at /Users/rheasrivats/Downloads/noe_uc_app.pdf");

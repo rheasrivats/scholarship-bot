@@ -70,6 +70,14 @@ Optional Supabase env (local file supported):
 cp .env.example .env.local
 # fill SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
 # optional for local dev fallback: SUPABASE_DEV_USER_ID
+# optional cost controls for autofill/guided AI:
+# AUTOFILL_AI_MODEL=gpt-5.3-codex-spark
+# AUTOFILL_AI_ENABLE_SEARCH=0
+# AUTOFILL_FIELD_MAPPER_MODEL=gpt-5.4-mini
+# AUTOFILL_FIELD_MAPPER_REASONING_EFFORT=low
+# GUIDED_AI_MODEL=gpt-5.4-mini
+# GUIDED_AI_REASONING_EFFORT=low
+# GUIDED_AI_ENABLE_SEARCH=0
 ```
 
 ```bash
@@ -101,6 +109,7 @@ Endpoints:
 - `GET /admin/scholarships`
 - `POST /admin/scholarships/replace`
 - `GET /admin/candidates`
+- `POST /candidates/suggest` (signed-in users can add a scholarship URL to their queue)
 - `POST /admin/candidates/import`
 - `POST /admin/candidates/review`
 - `POST /admin/agent-discovery` (AI-agent discovery and import)

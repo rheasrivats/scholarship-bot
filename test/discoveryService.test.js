@@ -6,6 +6,8 @@ import path from "node:path";
 import { discoverScholarshipCandidates, __testables } from "../src/discovery/discoveryService.js";
 
 const {
+  allocateDiscoveryQueryBudget,
+  buildDiscoveryQueryFamilies,
   buildDiscoveryQueries,
   parseBraveWebSearchResults,
   buildCandidateFromPage,
@@ -279,14 +281,48 @@ test("buildDiscoveryQueries expands to a broader manual rerun query set", () => 
       }
     },
     studentStage: "starting_college",
-    maxQueries: 12
+    maxQueries: 12,
+    manualRerun: true
   });
 
   assert.equal(queries.length >= 10, true);
   assert.ok(queries.some((query) => /undergraduate scholarship/i.test(query)));
-  assert.ok(queries.some((query) => /first year college/i.test(query)));
+  assert.ok(queries.some((query) => /incoming freshman|first-year student|college freshman/i.test(query)));
   assert.ok(queries.some((query) => /incoming freshman/i.test(query)));
   assert.ok(queries.some((query) => /first-year student/i.test(query) || /first year student/i.test(query)));
+  assert.ok(queries.some((query) => /no essay scholarship/i.test(query) || /open to all majors/i.test(query)));
+});
+
+test("allocateDiscoveryQueryBudget reserves space for specific, broad, and generic passes", () => {
+  const standard = allocateDiscoveryQueryBudget(12);
+  const rerun = allocateDiscoveryQueryBudget(12, { manualRerun: true });
+
+  assert.equal(standard.specificFit + standard.broadFit + standard.genericWidening, 12);
+  assert.equal(rerun.specificFit + rerun.broadFit + rerun.genericWidening, 12);
+  assert.ok(standard.specificFit >= standard.genericWidening);
+  assert.ok(rerun.genericWidening >= 2);
+});
+
+test("buildDiscoveryQueryFamilies includes broad-fit and generic widening queries", () => {
+  const families = buildDiscoveryQueryFamilies({
+    profile: {
+      personalInfo: {
+        intendedMajor: "Mechanical Engineering, B.S.",
+        ethnicity: "Hispanic/Latino",
+        state: "California"
+      },
+      academics: {
+        gradeLevel: "12th grade"
+      }
+    },
+    studentStage: "starting_college",
+    discoveryDomains: []
+  });
+
+  assert.ok(families.specificFit.some((query) => /mechanical engineering scholarship incoming college freshman/i.test(query)));
+  assert.ok(families.broadFit.some((query) => /stem scholarship/i.test(query) || /undergraduate scholarship/i.test(query)));
+  assert.ok(families.genericWidening.some((query) => /no essay scholarship/i.test(query)));
+  assert.ok(families.genericWidening.some((query) => /open to all majors/i.test(query) || /easy apply scholarship/i.test(query)));
 });
 
 test("parseBraveWebSearchResults extracts ranked links", () => {
@@ -366,6 +402,46 @@ test("search reranking boosts domains with approved history over heavily rejecte
 
   assert.equal(ranked[0].url, "https://trusted.example.org/scholarships/future-engineers-scholarship");
   assert.ok(ranked[0].fitScore > ranked[1].fitScore);
+});
+
+test("search reranking demotes list-heavy low-yield domains", () => {
+  const now = new Date().toISOString();
+  const ranked = rerankSearchResultsForDiscovery([
+    {
+      title: "Future Engineers Scholarship",
+      url: "https://roundups.example/future-engineers-scholarship",
+      snippet: "Mechanical engineering scholarship for incoming college freshmen in California.",
+      query: "mechanical engineering scholarship incoming college freshman",
+      globalRank: 1,
+      passPriority: 0
+    },
+    {
+      title: "Future Engineers Scholarship",
+      url: "https://novel.example/future-engineers-scholarship",
+      snippet: "Mechanical engineering scholarship for incoming college freshmen in California.",
+      query: "mechanical engineering scholarship incoming college freshman",
+      globalRank: 2,
+      passPriority: 0
+    }
+  ], new Map([
+    ["https://roundups.example/list-one", { normalizedUrl: "https://roundups.example/list-one", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }],
+    ["https://roundups.example/list-two", { normalizedUrl: "https://roundups.example/list-two", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }],
+    ["https://roundups.example/list-three", { normalizedUrl: "https://roundups.example/list-three", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }],
+    ["https://roundups.example/list-four", { normalizedUrl: "https://roundups.example/list-four", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }],
+    ["https://roundups.example/list-five", { normalizedUrl: "https://roundups.example/list-five", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }],
+    ["https://roundups.example/list-six", { normalizedUrl: "https://roundups.example/list-six", sourceDomain: "roundups.example", pageType: "scholarship_list_page", lastFetchedAt: now }]
+  ]), {
+    personalInfo: {
+      intendedMajor: "Mechanical Engineering",
+      ethnicity: "Hispanic/Latino",
+      state: "California"
+    },
+    academics: {
+      gradeLevel: "12th grade"
+    }
+  }, "starting_college");
+
+  assert.equal(ranked[0].url, "https://novel.example/future-engineers-scholarship");
 });
 
 test("search-result fit scoring penalizes junior/senior scholarships for starting_college", () => {
@@ -802,6 +878,368 @@ test("discoverScholarshipCandidates skips recently fetched URLs from history on 
     assert.equal(result.diagnostics.historySkippedPages >= 1, true);
     assert.ok(result.logs.some((line) => /history-skip/.test(line)));
     assert.deepEqual(fetchedUrls, ["https://example.org/new-community-stem-award"]);
+  } finally {
+    if (originalHistoryPath === undefined) {
+      delete process.env.DISCOVERY_URL_HISTORY_PATH;
+    } else {
+      process.env.DISCOVERY_URL_HISTORY_PATH = originalHistoryPath;
+    }
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("discoverScholarshipCandidates freshStart bypasses recent history for high-fit first-run pages", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "discovery-history-fresh-start-"));
+  const historyPath = path.join(tempDir, "url-history.json");
+  const now = new Date().toISOString();
+  await fs.writeFile(historyPath, JSON.stringify([
+    {
+      url: "https://example.org/future-engineers-scholarship",
+      normalizedUrl: "https://example.org/future-engineers-scholarship",
+      sourceDomain: "example.org",
+      pageType: "direct_scholarship",
+      lastSeenAt: now,
+      lastFetchedAt: now,
+      lastSearchQuery: "mechanical engineering scholarship incoming college freshman",
+      lastError: "",
+      candidateId: "future-engineers-scholarship-example.org",
+      candidateName: "Future Engineers Scholarship"
+    }
+  ], null, 2));
+
+  const originalHistoryPath = process.env.DISCOVERY_URL_HISTORY_PATH;
+  process.env.DISCOVERY_URL_HISTORY_PATH = historyPath;
+
+  const fetchedUrls = [];
+  const fetchImpl = async (url) => {
+    const href = typeof url === "string" ? url : url.toString();
+    if (href.startsWith("https://api.search.brave.com/res/v1/web/search")) {
+      return createMockJsonResponse({
+        web: {
+          results: [
+            {
+              title: "Future Engineers Scholarship",
+              url: "https://example.org/future-engineers-scholarship",
+              description: "Scholarship for incoming engineering freshmen in California."
+            },
+            {
+              title: "General Student Funding Directory",
+              url: "https://example.org/general-directory",
+              description: "General student funding listings."
+            }
+          ]
+        }
+      });
+    }
+    fetchedUrls.push(href);
+    if (href === "https://example.org/future-engineers-scholarship") {
+      return createMockResponse(GOOD_PAGE_HTML);
+    }
+    if (href === "https://example.org/general-directory") {
+      return createMockResponse(LIST_PAGE_HTML);
+    }
+    throw new Error(`Unexpected URL: ${href}`);
+  };
+
+  try {
+    const result = await discoverScholarshipCandidates({
+      sessionId: "discovery-test-history-fresh-start",
+      studentStage: "starting_college",
+      discoveryMaxResults: 5,
+      discoveryQueryBudget: 2,
+      documents: [
+        {
+          documentId: "doc-1",
+          fileName: "student.txt",
+          rawText: [
+            "First Name: Noe",
+            "Last Name: Zuleta",
+            "Intended Major: Mechanical Engineering",
+            "Ethnicity: Hispanic/Latino",
+            "State: California",
+            "GPA: 3.9",
+            "Current Grade Level: 12th grade"
+          ].join("\n")
+        }
+      ],
+      fetchImpl,
+      enableUrlHistory: true,
+      freshStart: true,
+      braveApiKey: "test-brave-key"
+    });
+
+    assert.ok(result.logs.some((line) => /fresh_start=yes/.test(line)));
+    assert.ok(result.logs.some((line) => /history-bypass|history-revisit/.test(line)));
+    assert.ok(fetchedUrls.includes("https://example.org/future-engineers-scholarship"));
+  } finally {
+    if (originalHistoryPath === undefined) {
+      delete process.env.DISCOVERY_URL_HISTORY_PATH;
+    } else {
+      process.env.DISCOVERY_URL_HISTORY_PATH = originalHistoryPath;
+    }
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("discoverScholarshipCandidates rejects already reviewed candidates before final output", async () => {
+  const fetchImpl = async (url) => {
+    const href = typeof url === "string" ? url : url.toString();
+    if (href.startsWith("https://api.search.brave.com/res/v1/web/search")) {
+      return createMockJsonResponse({
+        web: {
+          results: [
+            {
+              title: "Future Engineers Scholarship",
+              url: "https://example.org/future-engineers-scholarship",
+              description: "Scholarship for incoming engineering freshmen in California."
+            }
+          ]
+        }
+      });
+    }
+    if (href === "https://example.org/future-engineers-scholarship") {
+      return createMockResponse(GOOD_PAGE_HTML);
+    }
+    throw new Error(`Unexpected URL: ${href}`);
+  };
+
+  const result = await discoverScholarshipCandidates({
+    sessionId: "discovery-test-known-candidate-skip",
+    studentStage: "starting_college",
+    discoveryMaxResults: 5,
+    discoveryQueryBudget: 2,
+    documents: [
+      {
+        documentId: "doc-1",
+        fileName: "student.txt",
+        rawText: [
+          "First Name: Noe",
+          "Last Name: Zuleta",
+          "Intended Major: Mechanical Engineering",
+          "Ethnicity: Hispanic/Latino",
+          "State: California",
+          "GPA: 3.9",
+          "Current Grade Level: 12th grade"
+        ].join("\n")
+      }
+    ],
+    existingCandidates: [
+      {
+        id: "future-engineers-scholarship-example.org",
+        name: "Future Engineers Scholarship",
+        sourceUrl: "https://example.org/future-engineers-scholarship",
+        sourceDomain: "example.org",
+        status: "approved"
+      }
+    ],
+    fetchImpl,
+    enableUrlHistory: false,
+    braveApiKey: "test-brave-key"
+  });
+
+  assert.equal(result.candidates.length, 0);
+  assert.ok(result.logs.some((line) => /already_reviewed_or_known/.test(line)));
+});
+
+test("discoverScholarshipCandidates can use AI search expansion to rescue a weak deterministic frontier", async () => {
+  const fetchImpl = async (url) => {
+    const href = typeof url === "string" ? url : url.toString();
+    if (href.startsWith("https://api.search.brave.com/res/v1/web/search")) {
+      return createMockJsonResponse({
+        web: {
+          results: [
+            {
+              title: "General Scholarship Directory",
+              url: "https://example.org/scholarships/directory",
+              description: "A broad directory of scholarship listings."
+            }
+          ]
+        }
+      });
+    }
+    if (href === "https://example.org/scholarships/directory") {
+      return createMockResponse(LIST_PAGE_HTML);
+    }
+    if (href === "https://hsf.example.org/future-engineers-scholarship") {
+      return createMockResponse(GOOD_PAGE_HTML);
+    }
+    throw new Error(`Unexpected URL: ${href}`);
+  };
+
+  const result = await discoverScholarshipCandidates({
+    sessionId: "discovery-test-ai-search-expansion",
+    studentStage: "starting_college",
+    discoveryMaxResults: 5,
+    discoveryQueryBudget: 2,
+    documents: [
+      {
+        documentId: "doc-1",
+        fileName: "student.txt",
+        rawText: [
+          "First Name: Noe",
+          "Last Name: Zuleta",
+          "Intended Major: Mechanical Engineering",
+          "Ethnicity: Hispanic/Latino",
+          "State: California",
+          "GPA: 3.9",
+          "Current Grade Level: 12th grade"
+        ].join("\n")
+      }
+    ],
+    fetchImpl,
+    braveApiKey: "test-brave-key",
+    enableAiSearchExpansion: true,
+    aiSearchExpansionImpl: async () => ({
+      queries: [],
+      urls: [
+        {
+          url: "https://hsf.example.org/future-engineers-scholarship",
+          title: "Future Engineers Scholarship",
+          kind: "direct_scholarship",
+          rationale: "Direct scholarship detail page from a strong scholarship organization."
+        }
+      ],
+      notes: ["The deterministic pass is too list-heavy; try a direct scholarship detail page."],
+      metadata: {
+        mode: "test_stub"
+      }
+    })
+  });
+
+  assert.equal(result.candidates.length, 1);
+  assert.equal(result.candidates[0].candidate.name, "Future Engineers Scholarship");
+  assert.equal(result.diagnostics.aiSearchExpansion.mode, "test_stub");
+  assert.ok(result.logs.some((line) => /ai-search/.test(line)));
+});
+
+test("discoverScholarshipCandidates can trigger AI search expansion after history thins the frontier", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "discovery-ai-post-history-"));
+  const historyPath = path.join(tempDir, "url-history.json");
+  const now = new Date().toISOString();
+  await fs.writeFile(historyPath, JSON.stringify([
+    {
+      url: "https://example.org/direct-1",
+      normalizedUrl: "https://example.org/direct-1",
+      sourceDomain: "example.org",
+      pageType: "direct_scholarship",
+      lastSeenAt: now,
+      lastFetchedAt: now,
+      lastSearchQuery: "mechanical engineering scholarship incoming college freshman",
+      lastError: "",
+      candidateId: "",
+      candidateName: ""
+    },
+    {
+      url: "https://example.org/direct-2",
+      normalizedUrl: "https://example.org/direct-2",
+      sourceDomain: "example.org",
+      pageType: "direct_scholarship",
+      lastSeenAt: now,
+      lastFetchedAt: now,
+      lastSearchQuery: "mechanical engineering scholarship incoming college freshman",
+      lastError: "",
+      candidateId: "",
+      candidateName: ""
+    },
+    {
+      url: "https://example.org/direct-3",
+      normalizedUrl: "https://example.org/direct-3",
+      sourceDomain: "example.org",
+      pageType: "direct_scholarship",
+      lastSeenAt: now,
+      lastFetchedAt: now,
+      lastSearchQuery: "mechanical engineering scholarship incoming college freshman",
+      lastError: "",
+      candidateId: "",
+      candidateName: ""
+    },
+    {
+      url: "https://example.org/direct-4",
+      normalizedUrl: "https://example.org/direct-4",
+      sourceDomain: "example.org",
+      pageType: "direct_scholarship",
+      lastSeenAt: now,
+      lastFetchedAt: now,
+      lastSearchQuery: "mechanical engineering scholarship incoming college freshman",
+      lastError: "",
+      candidateId: "",
+      candidateName: ""
+    }
+  ], null, 2));
+
+  const originalHistoryPath = process.env.DISCOVERY_URL_HISTORY_PATH;
+  process.env.DISCOVERY_URL_HISTORY_PATH = historyPath;
+
+  const fetchImpl = async (url) => {
+    const href = typeof url === "string" ? url : url.toString();
+    if (href.startsWith("https://api.search.brave.com/res/v1/web/search")) {
+      return createMockJsonResponse({
+        web: {
+          results: [
+            { title: "Direct One Scholarship", url: "https://example.org/direct-1", description: "Incoming freshman engineering scholarship." },
+            { title: "Direct Two Scholarship", url: "https://example.org/direct-2", description: "Incoming freshman engineering scholarship." },
+            { title: "Direct Three Scholarship", url: "https://example.org/direct-3", description: "Incoming freshman engineering scholarship." },
+            { title: "Direct Four Scholarship", url: "https://example.org/direct-4", description: "Incoming freshman engineering scholarship." },
+            { title: "Direct Five Scholarship", url: "https://example.org/direct-5", description: "Incoming freshman engineering scholarship." },
+            { title: "Direct Six Scholarship", url: "https://example.org/direct-6", description: "Incoming freshman engineering scholarship." }
+          ]
+        }
+      });
+    }
+    if (href === "https://hsf.example.org/future-engineers-scholarship") {
+      return createMockResponse(GOOD_PAGE_HTML);
+    }
+    if (/https:\/\/example\.org\/direct-[56]$/.test(href)) {
+      return createMockResponse("<html><body><h1>Closed Directory Page</h1><p>Top scholarships list.</p></body></html>");
+    }
+    throw new Error(`Unexpected URL: ${href}`);
+  };
+
+  try {
+    const result = await discoverScholarshipCandidates({
+      sessionId: "discovery-test-ai-post-history",
+      studentStage: "starting_college",
+      discoveryMaxResults: 5,
+      discoveryQueryBudget: 2,
+      documents: [
+        {
+          documentId: "doc-1",
+          fileName: "student.txt",
+          rawText: [
+            "First Name: Noe",
+            "Last Name: Zuleta",
+            "Intended Major: Mechanical Engineering",
+            "Ethnicity: Hispanic/Latino",
+            "State: California",
+            "GPA: 3.9",
+            "Current Grade Level: 12th grade"
+          ].join("\n")
+        }
+      ],
+      fetchImpl,
+      enableUrlHistory: true,
+      braveApiKey: "test-brave-key",
+      enableAiSearchExpansion: true,
+      aiSearchExpansionImpl: async () => ({
+        queries: [],
+        urls: [
+          {
+            url: "https://hsf.example.org/future-engineers-scholarship",
+            title: "Future Engineers Scholarship",
+            kind: "direct_scholarship",
+            rationale: "A fresh direct scholarship URL to recover after history consumed the frontier."
+          }
+        ],
+        notes: ["History consumed most direct URLs, so add a new direct scholarship page."],
+        metadata: {
+          mode: "test_stub"
+        }
+      })
+    });
+
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.diagnostics.aiSearchExpansion.mode, "test_stub");
+    assert.ok(result.logs.some((line) => /trigger=post_history/.test(line)));
   } finally {
     if (originalHistoryPath === undefined) {
       delete process.env.DISCOVERY_URL_HISTORY_PATH;

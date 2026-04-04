@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadLocalEnv } from "../config/loadEnv.js";
 import { runNoAccountMvp } from "../pipeline/runNoAccountMvp.js";
-import { getScholarshipsDataFilePath, loadScholarships, replaceScholarships } from "../data/scholarshipStore.js";
 import { generateFormMappingWithPlaywrightFromUrl } from "../autofill/playwrightFormMapper.js";
 import { generateFormMappingWithAgentFromUrl } from "../autofill/agentFormMapper.js";
 import { generateEssayDraftWithAgent } from "../autofill/essayDraftAgent.js";
@@ -13,11 +12,14 @@ import {
   importCandidates,
   loadCandidates,
   markCandidateSubmitted,
-  reviewCandidate
+  reviewCandidate,
+  updateCandidateById
 } from "../data/candidateStore.js";
 import {
   importCandidatesToSupabase,
   loadCandidatesFromSupabase,
+  markCandidateAsUserSuggestedInSupabase,
+  refreshCandidateMetadataInSupabase,
   markCandidateSubmittedInSupabase,
   reviewCandidateInSupabase
 } from "../data/candidateStoreSupabase.js";
@@ -70,6 +72,264 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
+function candidatesToCanonicalScholarships(candidates = []) {
+  const rows = Array.isArray(candidates) ? candidates : [];
+  const seen = new Set();
+  const output = [];
+  for (const candidate of rows) {
+    if (!candidate || candidate.status === "rejected") continue;
+    const asScholarship = candidateToScholarshipRecord(candidate);
+    const keys = [
+      String(asScholarship.id || "").toLowerCase(),
+      String(asScholarship.sourceUrl || "").toLowerCase(),
+      `${String(asScholarship.name || "").toLowerCase()}::${String(asScholarship.sourceDomain || "").toLowerCase()}`
+    ].filter(Boolean);
+    if (keys.some((key) => seen.has(key))) continue;
+    keys.forEach((key) => seen.add(key));
+    output.push(asScholarship);
+  }
+  return output;
+}
+
+function stripHtmlTags(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toTitleCase(value) {
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ")
+    .trim();
+}
+
+function extractMetaTags(html = "") {
+  const tags = [];
+  const re = /<meta\b[^>]*>/gi;
+  let match = re.exec(String(html || ""));
+  while (match) {
+    tags.push(String(match[0] || ""));
+    match = re.exec(String(html || ""));
+  }
+  return tags;
+}
+
+function extractMetaAttr(tag, attrName) {
+  const name = String(attrName || "").toLowerCase();
+  const re = new RegExp(`${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
+  const match = String(tag || "").match(re);
+  return String(match?.[2] ?? match?.[3] ?? match?.[4] ?? "").trim();
+}
+
+function parseHtmlTitle(html = "") {
+  const tags = extractMetaTags(html);
+  for (const tag of tags) {
+    const property = extractMetaAttr(tag, "property").toLowerCase();
+    const name = extractMetaAttr(tag, "name").toLowerCase();
+    const content = extractMetaAttr(tag, "content");
+    if (!content) continue;
+    if (property === "og:title" || property === "twitter:title" || name === "title" || name === "og:title" || name === "twitter:title") {
+      return stripHtmlTags(content);
+    }
+  }
+
+  const titleTag = String(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "").trim();
+  if (titleTag) return stripHtmlTags(titleTag);
+
+  const h1 = String(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || "").trim();
+  if (h1) return stripHtmlTags(h1);
+
+  return "";
+}
+
+function parseDeadlineFromText(text = "") {
+  const value = String(text || "");
+  if (!value) return "";
+
+  const withKeyword = value.match(
+    /\b(?:deadline|apply by|applications? due|due date|submission deadline)\b[^A-Za-z0-9]{0,20}([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/i
+  );
+  if (withKeyword?.[1]) {
+    return String(withKeyword[1]).trim();
+  }
+
+  const generic = value.match(/\b([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/);
+  return String(generic?.[1] || "").trim();
+}
+
+function parseAwardAmountFromText(text = "") {
+  const value = String(text || "");
+  if (!value) return 0;
+
+  const keywordFirst = value.match(/\b(?:award|scholarship|amount|prize|winner(?:s)?)\b[\s\S]{0,60}?\$\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{3,7})/i);
+  const candidate = keywordFirst?.[1]
+    || value.match(/\$\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,7})/)?.[1]
+    || "";
+  const numeric = Number(String(candidate || "").replace(/,/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (numeric > 1000000) return 0;
+  return Math.round(numeric);
+}
+
+async function fetchScholarshipMetadata(sourceUrl, timeoutMs = 12000) {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const response = await fetch(sourceUrl, {
+      method: "GET",
+      headers: {
+        "user-agent": "ScholarshipBot/0.1 (+candidate-suggest)",
+        accept: "text/html,application/xhtml+xml"
+      },
+      signal: controller?.signal
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const html = await response.text();
+    const title = parseHtmlTitle(html);
+    const text = stripHtmlTags(html).slice(0, 120000);
+    const deadline = parseDeadlineFromText(text);
+    const awardAmount = parseAwardAmountFromText(text);
+    return {
+      title,
+      deadline,
+      awardAmount
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function deriveNameFromUrlPath(sourceUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(sourceUrl || ""));
+  } catch {
+    return "";
+  }
+  const pieces = String(parsed.pathname || "")
+    .split("/")
+    .map((part) => decodeURIComponent(part))
+    .map((part) => part.replace(/\.[a-z0-9]+$/i, "").trim())
+    .filter(Boolean);
+  const last = String(pieces[pieces.length - 1] || "").trim();
+  if (!last) return "";
+  const cleaned = last
+    .replace(/[-_+]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return toTitleCase(cleaned);
+}
+
+function normalizeSuggestedScholarship(body = {}) {
+  const sourceUrlRaw = String(body.sourceUrl || body.url || "").trim();
+  if (!sourceUrlRaw) {
+    throw new Error("sourceUrl is required");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(sourceUrlRaw);
+  } catch {
+    throw new Error("sourceUrl must be a valid absolute URL");
+  }
+
+  if (!/^https?:$/i.test(parsed.protocol)) {
+    throw new Error("sourceUrl must start with http:// or https://");
+  }
+
+  const sourceDomain = String(parsed.hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
+  if (!sourceDomain) {
+    throw new Error("Unable to infer sourceDomain from sourceUrl");
+  }
+
+  const preferredName = String(body.name || "").trim();
+  const pathName = deriveNameFromUrlPath(parsed.toString());
+  const domainName = `${sourceDomain.replace(/\.[a-z]{2,}$/i, "").replace(/[.\-_]+/g, " ").trim()} scholarship`
+    .replace(/\s+/g, " ")
+    .trim();
+  const fallbackName = pathName || toTitleCase(domainName);
+  const name = preferredName || fallbackName || `Scholarship from ${sourceDomain}`;
+
+  const requiresAccount = body.requiresAccount === true;
+  const awardAmountRaw = Number(body.awardAmount || 0);
+  const awardAmount = Number.isFinite(awardAmountRaw) && awardAmountRaw > 0 ? awardAmountRaw : 0;
+  const deadline = String(body.deadline || "").trim();
+  const notes = String(body.notes || "").trim();
+
+  return {
+    name,
+    userProvidedName: Boolean(preferredName),
+    userSuggested: true,
+    sourceDomain,
+    sourceUrl: parsed.toString(),
+    sourceName: sourceDomain,
+    requiresAccount,
+    awardAmount,
+    deadline,
+    estimatedEffortMinutes: 30,
+    eligibility: {
+      minGpa: null,
+      allowedMajors: [],
+      allowedEthnicities: []
+    },
+    inferredRequirements: {
+      requiredMajors: [],
+      requiredEthnicities: [],
+      requiredStates: [],
+      minAge: null,
+      maxAge: null,
+      requirementStatements: []
+    },
+    essayPrompts: [],
+    formFields: [],
+    notes
+  };
+}
+
+async function enrichSuggestedScholarshipMetadata(candidate, { timeoutMs = 12000, silent = true } = {}) {
+  const base = candidate && typeof candidate === "object" ? { ...candidate } : null;
+  if (!base?.sourceUrl) return base;
+  try {
+    const metadata = await fetchScholarshipMetadata(base.sourceUrl, timeoutMs);
+    if (metadata.title && !base.userProvidedName) {
+      base.name = metadata.title;
+    }
+    if (!base.deadline && metadata.deadline) {
+      base.deadline = metadata.deadline;
+    }
+    if (!Number(base.awardAmount) && Number(metadata.awardAmount || 0) > 0) {
+      base.awardAmount = Number(metadata.awardAmount);
+    }
+    return base;
+  } catch (error) {
+    if (!silent) {
+      throw error;
+    }
+    return base;
+  }
+}
+
+function isLikelyDomainDerivedTitle(name = "", sourceDomain = "") {
+  const normalizedName = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normalizedDomain = String(sourceDomain || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!normalizedName || !normalizedDomain) return false;
+  return normalizedName.startsWith(normalizedDomain) && normalizedName.endsWith("scholarship");
+}
+
 function tailText(value, maxLines = 80) {
   const lines = String(value || "").split("\n");
   return lines.slice(-maxLines).join("\n");
@@ -107,6 +367,28 @@ function determineNoNewCandidatesReason({
     return "no_pending_candidates_after_import";
   }
   return "unknown_no_new_candidates";
+}
+
+function buildDiscoveryResponseMessage(reason, counts = {}) {
+  const discovered = Number(counts.discoveredByAgent || 0);
+  const imported = Number(counts.importedCount || 0);
+
+  if (!reason) {
+    return `Discovery completed. Added ${imported} new scholarship${imported === 1 ? "" : "s"}.`;
+  }
+  if (reason === "all_discovered_candidates_skipped_or_deduped") {
+    return `Discovery found ${discovered} scholarship${discovered === 1 ? "" : "s"}, but they were already in your saved reviewed history.`;
+  }
+  if (reason === "all_search_results_skipped_by_recent_history") {
+    return "Discovery searched again, but the frontier was dominated by very recent URLs from prior runs.";
+  }
+  if (reason === "agent_returned_zero_candidates") {
+    return "Discovery searched the web but did not find any new scholarship candidates that survived filtering.";
+  }
+  if (reason === "no_pending_candidates_after_import") {
+    return "Discovery completed, but there are no pending scholarships left after import.";
+  }
+  return "Deterministic discovery completed.";
 }
 
 const DEFAULT_DISCOVERY_QUERY_BUDGET = 12;
@@ -248,6 +530,92 @@ async function shouldUseSupabaseCandidateStore(req) {
     userId: user.userId,
     user
   };
+}
+
+async function getCanonicalScholarshipsForRequest(req, { forceReload = true } = {}) {
+  const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+  if (supabaseRoute.enabled) {
+    const candidates = await loadCandidatesFromSupabase(supabaseRoute.userId);
+    return {
+      scholarships: candidatesToCanonicalScholarships(candidates),
+      sourceFile: `supabase:user_scholarships (user_id=${supabaseRoute.userId})`,
+      supabaseRoute
+    };
+  }
+
+  const candidates = await loadCandidates({ forceReload });
+  return {
+    scholarships: candidatesToCanonicalScholarships(candidates),
+    sourceFile: getCandidatesDataFilePath(),
+    supabaseRoute
+  };
+}
+
+async function persistScholarshipFormMappingForRequest(req, scholarship, mapped, { mappingMode = "playwright", fallbackReason = "" } = {}) {
+  const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+  const nowIso = new Date().toISOString();
+  const formMappingMeta = {
+    mode: mappingMode,
+    sourceUrl: mapped.sourceUrl,
+    updatedAt: nowIso,
+    fallbackReason
+  };
+
+  if (supabaseRoute.enabled) {
+    const client = getSupabaseAdminClient();
+    if (!client) {
+      throw new Error("Supabase is not configured");
+    }
+    const scholarshipId = String(scholarship.id || "").trim();
+    if (!scholarshipId) {
+      throw new Error("Scholarship id is required for Supabase mapping updates");
+    }
+
+    const { data: existingRows, error: existingError } = await client
+      .from("scholarships")
+      .select("id, metadata")
+      .eq("id", scholarshipId)
+      .limit(1);
+    if (existingError) {
+      throw new Error(`Supabase scholarship read failed: ${existingError.message}`);
+    }
+    const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+    if (!existing?.id) {
+      throw new Error(`Supabase scholarship not found for id: ${scholarshipId}`);
+    }
+    const metadata = existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {};
+    const mergedMetadata = {
+      ...metadata,
+      formFields: Array.isArray(mapped.formFields) ? mapped.formFields : [],
+      formMappingMeta,
+      notes: [
+        String(metadata.notes || "").trim(),
+        `Form mapping generated ${nowIso} from ${mapped.sourceUrl} (mode: ${mappingMode}${fallbackReason ? `; fallback=${fallbackReason}` : ""})`
+      ].filter(Boolean).join(" | ")
+    };
+    const { error: updateError } = await client
+      .from("scholarships")
+      .update({ metadata: mergedMetadata })
+      .eq("id", scholarshipId);
+    if (updateError) {
+      throw new Error(`Supabase scholarship update failed: ${updateError.message}`);
+    }
+    return { sourceFile: `supabase:scholarships (id=${scholarshipId})` };
+  }
+
+  const scholarshipId = String(scholarship.id || "").trim();
+  const updated = await updateCandidateById({
+    id: scholarshipId,
+    updates: {
+      formFields: Array.isArray(mapped.formFields) ? mapped.formFields : [],
+      formMappingMeta,
+      reviewNotes: [
+        String(scholarship.reviewNotes || "").trim(),
+        `Form mapping generated ${nowIso} from ${mapped.sourceUrl} (mode: ${mappingMode}${fallbackReason ? `; fallback=${fallbackReason}` : ""})`
+      ].filter(Boolean).join(" | ")
+    }
+  });
+  return { sourceFile: `${getCandidatesDataFilePath()} (updated candidate ${updated.id})` };
 }
 
 async function findSupabaseUserByEmail(adminClient, email) {
@@ -528,17 +896,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && req.url === "/scholarships") {
+    const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
     sendJson(res, 200, {
-      scholarships: await loadScholarships({ forceReload: true }),
-      sourceFile: getScholarshipsDataFilePath()
+      scholarships: canonical.scholarships,
+      sourceFile: canonical.sourceFile
     });
     return;
   }
 
   if (req.method === "GET" && req.url === "/admin/scholarships") {
+    const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
     sendJson(res, 200, {
-      scholarships: await loadScholarships({ forceReload: true }),
-      sourceFile: getScholarshipsDataFilePath()
+      scholarships: canonical.scholarships,
+      sourceFile: canonical.sourceFile
     });
     return;
   }
@@ -569,11 +939,102 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && req.url === "/candidates/suggest") {
+    try {
+      const user = await resolveUserContext(req);
+      if (!user.userId) {
+        sendJson(res, 401, { error: "Sign in is required to suggest a scholarship URL." });
+        return;
+      }
+
+      const body = await parseBody(req);
+      const normalizedCandidate = normalizeSuggestedScholarship(body);
+      const candidate = await enrichSuggestedScholarshipMetadata(normalizedCandidate, {
+        timeoutMs: Number(body.fetchTimeoutMs || 12000)
+      });
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
+      const existingScholarships = canonical.scholarships;
+      const candidateUrl = String(candidate.sourceUrl || "").toLowerCase();
+      const existingVetted = existingScholarships.find((scholarship) => {
+        const scholarshipUrl = String(scholarship.sourceUrl || "").toLowerCase();
+        return scholarshipUrl && candidateUrl && scholarshipUrl === candidateUrl;
+      });
+      if (existingVetted) {
+        const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+        let reprioritized = null;
+        try {
+          if (supabaseRoute.enabled) {
+            reprioritized = await markCandidateAsUserSuggestedInSupabase({
+              userId: supabaseRoute.userId,
+              scholarshipId: String(existingVetted.id || "")
+            });
+          } else {
+            reprioritized = await updateCandidateById({
+              id: String(existingVetted.id || ""),
+              updates: { userSuggested: true }
+            });
+          }
+        } catch {
+          reprioritized = null;
+        }
+        sendJson(res, 200, {
+          status: "already_in_catalog",
+          message: reprioritized
+            ? "That scholarship is already in your saved scholarship catalog. It has been prioritized in your queue."
+            : "That scholarship is already in your saved scholarship catalog, so it will not be duplicated in candidate queue.",
+          existingScholarship: {
+            id: existingVetted.id,
+            name: existingVetted.name,
+            sourceUrl: existingVetted.sourceUrl || "",
+            sourceDomain: existingVetted.sourceDomain || ""
+          },
+          reprioritized
+        });
+        return;
+      }
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+
+      if (supabaseRoute.enabled) {
+        const imported = await importCandidatesToSupabase(
+          supabaseRoute.userId,
+          [candidate],
+          existingScholarships,
+          { replacePending: false }
+        );
+        sendJson(res, 200, {
+          status: imported.length ? "imported" : "already_in_queue",
+          message: imported.length
+            ? "Suggestion saved to your candidate queue."
+            : "Suggestion already exists in your queue or vetted list.",
+          imported,
+          sourceFile: `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+        });
+        return;
+      }
+
+      const imported = await importCandidates([candidate], existingScholarships, {
+        replacePending: false
+      });
+      sendJson(res, 200, {
+        status: imported.length ? "imported" : "already_in_queue",
+        message: imported.length
+          ? "Suggestion saved to the local fallback queue."
+          : "Suggestion already exists in the queue or vetted list.",
+        imported,
+        sourceFile: getCandidatesDataFilePath()
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
   if (req.method === "POST" && req.url === "/run-no-account-mvp") {
     try {
       const body = await parseBody(req);
       const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const documents = body.documents || [];
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
 
       if (!Array.isArray(documents) || documents.length === 0) {
         sendJson(res, 400, { error: "documents must be a non-empty array" });
@@ -583,7 +1044,7 @@ const server = http.createServer(async (req, res) => {
       const result = await runNoAccountMvp({
         sessionId,
         documents,
-        scholarships: await loadScholarships(),
+        scholarships: canonical.scholarships,
         overrides: body.overrides || {},
         enableAiEnrichment: body.enableAiEnrichment === true,
         aiTimeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
@@ -602,11 +1063,12 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
 
       const result = await runNoAccountMvp({
         sessionId,
         documents: normalizedDocuments,
-        scholarships: await loadScholarships(),
+        scholarships: canonical.scholarships,
         overrides: body.overrides || {},
         enableAiEnrichment: body.enableAiEnrichment !== false,
         aiTimeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
@@ -646,17 +1108,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && req.url === "/admin/scholarships/replace") {
-    try {
-      const body = await parseBody(req);
-      const scholarships = body.scholarships;
-      const replaced = await replaceScholarships(scholarships);
-      sendJson(res, 200, {
-        message: `Replaced scholarships dataset with ${replaced.length} records`,
-        sourceFile: getScholarshipsDataFilePath()
-      });
-    } catch (error) {
-      sendJson(res, 400, { error: error.message });
-    }
+    sendJson(res, 410, {
+      error: "Deprecated: scholarship catalog is derived from per-user candidate state, not data/scholarships.vetted.json."
+    });
     return;
   }
 
@@ -669,8 +1123,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const scholarships = await loadScholarships({ forceReload: true });
-      const scholarship = scholarships.find((item) => item.id === scholarshipId);
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
+      const scholarship = canonical.scholarships.find((item) => item.id === scholarshipId);
       if (!scholarship) {
         sendJson(res, 404, { error: `Scholarship not found: ${scholarshipId}` });
         return;
@@ -714,26 +1168,10 @@ const server = http.createServer(async (req, res) => {
         );
       }
 
-      const updated = scholarships.map((item) => (
-        item.id === scholarshipId
-          ? {
-            ...item,
-            formFields: mapped.formFields,
-            formMappingMeta: {
-              mode: mappingMode,
-              sourceUrl: mapped.sourceUrl,
-              updatedAt: new Date().toISOString(),
-              fallbackReason
-            },
-            notes: [
-              item.notes || "",
-              `Form mapping generated ${new Date().toISOString()} from ${mapped.sourceUrl} (mode: ${mappingMode}${fallbackReason ? `; fallback=${fallbackReason}` : ""})`
-            ].filter(Boolean).join(" | ")
-          }
-          : item
-      ));
-
-      await replaceScholarships(updated);
+      const persisted = await persistScholarshipFormMappingForRequest(req, scholarship, mapped, {
+        mappingMode,
+        fallbackReason
+      });
       sendJson(res, 200, {
         message: `Generated ${mapped.discoveredCount} form field mappings for ${scholarshipId} (${mappingMode})`,
         scholarshipId,
@@ -742,7 +1180,7 @@ const server = http.createServer(async (req, res) => {
         sourceUrl: mapped.sourceUrl,
         mappingMode,
         fallbackReason,
-        sourceFile: getScholarshipsDataFilePath()
+        sourceFile: persisted.sourceFile
       });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -778,7 +1216,8 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const result = await startGuidedSubmission({
         sourceUrl: body.sourceUrl,
-        payload: body.payload || {}
+        payload: body.payload || {},
+        studentProfile: body.studentProfile || {}
       });
       sendJson(res, 200, result);
     } catch (error) {
@@ -857,12 +1296,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && req.url === "/admin/candidates/import") {
     try {
       const body = await parseBody(req);
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
       const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
       if (supabaseRoute.enabled) {
         const imported = await importCandidatesToSupabase(
           supabaseRoute.userId,
           body.candidates,
-          await loadScholarships(),
+          canonical.scholarships,
           { replacePending: body.replacePending === true }
         );
         sendJson(res, 200, {
@@ -873,7 +1313,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const imported = await importCandidates(body.candidates, await loadScholarships(), {
+      const imported = await importCandidates(body.candidates, canonical.scholarships, {
         replacePending: body.replacePending === true
       });
       sendJson(res, 200, {
@@ -908,14 +1348,9 @@ const server = http.createServer(async (req, res) => {
           tierOverride: body.tierOverride || ""
         });
 
-      let approvedScholarship = null;
-      if (reviewed.status === "approved") {
-        const existing = await loadScholarships({ forceReload: true });
-        const asScholarship = candidateToScholarshipRecord(reviewed);
-        const remaining = existing.filter((scholarship) => scholarship.id !== reviewed.id);
-        approvedScholarship = asScholarship;
-        await replaceScholarships([...remaining, asScholarship]);
-      }
+      const approvedScholarship = reviewed.status === "approved"
+        ? candidateToScholarshipRecord(reviewed)
+        : null;
 
       sendJson(res, 200, {
         reviewed,
@@ -923,7 +1358,86 @@ const server = http.createServer(async (req, res) => {
         candidatesFile: supabaseRoute.enabled
           ? `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
           : getCandidatesDataFilePath(),
-        vettedScholarshipsFile: getScholarshipsDataFilePath()
+        canonicalSource: supabaseRoute.enabled
+          ? `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+          : getCandidatesDataFilePath()
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/candidates/refresh-metadata") {
+    try {
+      const body = await parseBody(req);
+      const candidateId = String(body.id || "").trim();
+      if (!candidateId) {
+        throw new Error("id is required");
+      }
+
+      const fetchTimeoutMs = Number(body.fetchTimeoutMs || 12000);
+      const timeoutMs = Number.isFinite(fetchTimeoutMs) && fetchTimeoutMs > 0
+        ? Math.min(fetchTimeoutMs, 30000)
+        : 12000;
+
+      const supabaseRoute = await shouldUseSupabaseCandidateStore(req);
+      const candidates = supabaseRoute.enabled
+        ? await loadCandidatesFromSupabase(supabaseRoute.userId)
+        : await loadCandidates({ forceReload: true });
+      const current = candidates.find((candidate) => String(candidate.id || "") === candidateId);
+      if (!current) {
+        throw new Error(`Candidate not found: ${candidateId}`);
+      }
+      if (!current.sourceUrl) {
+        throw new Error("Candidate is missing sourceUrl and cannot be refreshed");
+      }
+
+      const enriched = await enrichSuggestedScholarshipMetadata({
+        ...current,
+        userProvidedName: false
+      }, { timeoutMs, silent: false });
+
+      const pathDerivedName = deriveNameFromUrlPath(current.sourceUrl || "");
+      if (
+        pathDerivedName
+        && isLikelyDomainDerivedTitle(enriched.name, current.sourceDomain)
+        && pathDerivedName.toLowerCase() !== String(enriched.name || "").toLowerCase()
+      ) {
+        enriched.name = pathDerivedName;
+      }
+
+      const updated = supabaseRoute.enabled
+        ? await refreshCandidateMetadataInSupabase({
+          userId: supabaseRoute.userId,
+          scholarshipId: candidateId,
+          name: enriched.name,
+          deadline: enriched.deadline,
+          awardAmount: enriched.awardAmount
+        })
+        : await updateCandidateById({
+          id: candidateId,
+          updates: {
+            name: enriched.name,
+            deadline: enriched.deadline,
+            awardAmount: Number(enriched.awardAmount || 0)
+          }
+        });
+
+      const changedFields = [];
+      if (String(updated.name || "") !== String(current.name || "")) changedFields.push("name");
+      if (String(updated.deadline || "") !== String(current.deadline || "")) changedFields.push("deadline");
+      if (Number(updated.awardAmount || 0) !== Number(current.awardAmount || 0)) changedFields.push("awardAmount");
+
+      sendJson(res, 200, {
+        candidate: updated,
+        changedFields,
+        message: changedFields.length
+          ? `Updated ${changedFields.join(", ")} from source page.`
+          : "No new metadata found on source page.",
+        candidatesFile: supabaseRoute.enabled
+          ? `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
+          : getCandidatesDataFilePath()
       });
     } catch (error) {
       sendJson(res, 400, { error: error.message });
@@ -1087,6 +1601,7 @@ const server = http.createServer(async (req, res) => {
         discoveryQueryBudget,
         discoveryDomains,
         manualRerun: body.manualRerun === true,
+        freshStart: body.freshStart === true,
         searchTimeoutMs: typeof body.searchTimeoutMs === "number" ? body.searchTimeoutMs : 10000,
         pageTimeoutMs: typeof body.pageTimeoutMs === "number" ? body.pageTimeoutMs : 12000,
         pageRetries: typeof body.pageRetries === "number" ? body.pageRetries : 1,
@@ -1094,14 +1609,15 @@ const server = http.createServer(async (req, res) => {
       });
 
       const discoveredCandidates = discovery.candidates.map((item) => item.candidate);
+      const canonical = await getCanonicalScholarshipsForRequest(req, { forceReload: true });
       const imported = supabaseRoute.enabled
         ? await importCandidatesToSupabase(
           supabaseRoute.userId,
           discoveredCandidates,
-          await loadScholarships(),
+          canonical.scholarships,
           { replacePending: true }
         )
-        : await importCandidates(discoveredCandidates, await loadScholarships(), {
+        : await importCandidates(discoveredCandidates, canonical.scholarships, {
           replacePending: true
         });
 
@@ -1177,8 +1693,14 @@ const server = http.createServer(async (req, res) => {
         stderrTail
       });
 
+      const responseMessage = buildDiscoveryResponseMessage(noNewCandidatesReason, {
+        discoveredByAgent,
+        importedCount,
+        pendingCount
+      });
+
       sendJson(res, 200, {
-        message: "Deterministic discovery completed",
+        message: responseMessage,
         summary,
         state: null,
         stdoutTail,

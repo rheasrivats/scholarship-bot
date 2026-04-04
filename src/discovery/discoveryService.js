@@ -24,11 +24,13 @@ const MAX_EXPANDED_CHILD_URLS_DEPTH_3_MANUAL = 12;
 const MAX_EXPANDED_CHILD_URLS_PER_DOMAIN_PER_DEPTH = 4;
 const DEFAULT_MAX_LIST_EXPANSION_DEPTH = 2;
 const MAX_HISTORY_REVISIT_PER_PASS = 6;
+const MIN_FRESH_START_FRONTIER = 6;
 const DEFAULT_DISCOVERY_QUERY_BUDGET = 12;
-const DEFAULT_PRECISION_QUERY_COUNT = 6;
-const PRECISION_RESULTS_PER_QUERY = 12;
-const WIDENING_RESULTS_PER_QUERY = 18;
+const SPECIFIC_FIT_RESULTS_PER_QUERY = 10;
+const BROAD_FIT_RESULTS_PER_QUERY = 14;
+const GENERIC_WIDENING_RESULTS_PER_QUERY = 18;
 const MAX_TOP_LEVEL_DIRECT_FETCHES = 18;
+const MAX_TOP_LEVEL_PROGRAM_HUB_FETCHES = 6;
 const MAX_TOP_LEVEL_LIST_FETCHES = 8;
 const MAX_TOP_LEVEL_OTHER_FETCHES = 6;
 
@@ -211,7 +213,60 @@ function getStageSearchTerms(studentStage, gradeLevel) {
   return ["college scholarship", "student scholarship", "undergraduate scholarship"];
 }
 
-function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, discoveryDomains = [] }) {
+function allocateDiscoveryQueryBudget(maxQueries = 6, { manualRerun = false, freshStart = false } = {}) {
+  const total = Math.max(1, Number(maxQueries) || 1);
+  if (total <= 2) {
+    return {
+      specificFit: Math.min(1, total),
+      broadFit: Math.max(0, total - 1),
+      genericWidening: 0
+    };
+  }
+  if (total <= 4) {
+    return {
+      specificFit: 2,
+      broadFit: Math.max(1, total - 3),
+      genericWidening: 1
+    };
+  }
+
+  const aggressive = manualRerun || freshStart;
+  const specificRatio = aggressive ? 0.42 : 0.5;
+  const broadRatio = aggressive ? 0.33 : 0.3;
+  let specificFit = Math.max(3, Math.round(total * specificRatio));
+  let broadFit = Math.max(2, Math.round(total * broadRatio));
+  let genericWidening = Math.max(1, total - specificFit - broadFit);
+
+  while ((specificFit + broadFit + genericWidening) > total) {
+    if (specificFit > broadFit && specificFit > 3) {
+      specificFit -= 1;
+    } else if (broadFit > 2) {
+      broadFit -= 1;
+    } else if (genericWidening > 1) {
+      genericWidening -= 1;
+    } else {
+      break;
+    }
+  }
+
+  while ((specificFit + broadFit + genericWidening) < total) {
+    if (aggressive && genericWidening <= broadFit) {
+      genericWidening += 1;
+    } else if (broadFit <= specificFit) {
+      broadFit += 1;
+    } else {
+      specificFit += 1;
+    }
+  }
+
+  return {
+    specificFit,
+    broadFit,
+    genericWidening
+  };
+}
+
+function buildDiscoveryQueryFamilies({ profile, studentStage = "", discoveryDomains = [] }) {
   const personal = profile?.personalInfo || {};
   const academics = profile?.academics || {};
   const major = normalizeSearchPhrase(personal.intendedMajor);
@@ -228,6 +283,101 @@ function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, dis
     ethnicity.split(/\s+/)
   ].flat());
 
+  const createFamilyBuilder = () => {
+    const values = [];
+    const push = (value) => {
+      const cleaned = cleanText(value);
+      if (!cleaned) {
+        return;
+      }
+      if (values.some((item) => item.toLowerCase() === cleaned.toLowerCase())) {
+        return;
+      }
+      values.push(cleaned);
+    };
+    return { values, push };
+  };
+
+  const specificFitFamily = createFamilyBuilder();
+  const broadFitFamily = createFamilyBuilder();
+  const genericFamily = createFamilyBuilder();
+  const pushSpecific = specificFitFamily.push;
+  const pushBroad = broadFitFamily.push;
+  const pushGeneric = genericFamily.push;
+
+  // Specific-fit family: strong niche alignment.
+  if (majorTerms[0] && stageTerms[0]) pushSpecific(`${majorTerms[0]} scholarship ${stageTerms[0]}`);
+  if (majorTerms[0] && state && stageTerms[0]) pushSpecific(`${majorTerms[0]} scholarship ${state} ${stageTerms[0]}`);
+  if (ethnicityTerms[0] && majorTerms[0] && stageTerms[0]) pushSpecific(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[0]}`);
+  if (majorTerms[0]) pushSpecific(`${majorTerms[0]} scholarship incoming freshman`);
+  if (majorTerms[0]) pushSpecific(`${majorTerms[0]} scholarship first-year student`);
+  if (majorTerms[0] && state) pushSpecific(`${majorTerms[0]} scholarship ${state} incoming freshman`);
+  if (ethnicityTerms[0] && majorTerms[0]) pushSpecific(`${ethnicityTerms[0]} ${majorTerms[0]} incoming freshman scholarship`);
+  if (majorTerms[0] && stageTerms[2]) pushSpecific(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
+  if (ethnicityTerms[0] && stageTerms[2]) pushSpecific(`${ethnicityTerms[0]} scholarship ${stageTerms[2]}`);
+
+  // Broad-fit family: relevant but less niche-constrained.
+  if (majorTerms[0]) pushBroad(`${majorTerms[0]} undergraduate scholarship`);
+  if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} undergraduate scholarship ${state}`);
+  if (majorTerms[0] && stageTerms[0]) pushBroad(`${majorTerms[0]} scholarships ${stageTerms[0]}`);
+  if (majorTerms[0] && stageTerms[0]) pushBroad(`${stageTerms[0]} ${majorTerms[0]} scholarship`);
+  if (ethnicityTerms[0] && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${stageTerms[0]}`);
+  if (state && stageTerms[0]) pushBroad(`${state} ${stageTerms[0]} scholarship`);
+  if (majorTerms[0] && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[1]}`);
+  if (majorTerms[0] && state && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${state} ${stageTerms[1]}`);
+  if (ethnicityTerms[0] && majorTerms[0] && stageTerms[1]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[1]}`);
+  if (ethnicityTerms[0] && state && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${state} ${stageTerms[0]}`);
+  if (majorTerms[0] && stageTerms[2]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
+  if (state && stageTerms[2]) pushBroad(`${state} ${stageTerms[2]} scholarship`);
+  if (majorTerms[0]) pushBroad(`${majorTerms[0]} scholarship undergraduate freshman`);
+  if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} scholarship ${state} first-year student`);
+  if (majorTerms[0]) pushBroad(`${majorTerms[0]} STEM scholarship`);
+  if (ethnicityTerms[0] && majorTerms[0]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship`);
+  if (ethnicityTerms[0] && state) pushBroad(`${ethnicityTerms[0]} STEM scholarship ${state}`);
+  if (state && stageTerms[1]) pushBroad(`${state} ${stageTerms[1]} scholarship`);
+
+  // Generic widening family: intentionally broad, low-restriction opportunities.
+  if (stageTerms[0]) pushGeneric(`${stageTerms[0]} scholarship`);
+  if (state && stageTerms[0]) pushGeneric(`${state} ${stageTerms[0]} no essay scholarship`);
+  if (state) pushGeneric(`${state} no essay scholarship`);
+  pushGeneric("no essay scholarship undergraduate");
+  pushGeneric("no essay scholarship incoming freshman");
+  pushGeneric("scholarship open to all majors undergraduate");
+  pushGeneric("easy apply scholarship undergraduate");
+  pushGeneric("general undergraduate scholarship");
+  pushGeneric("college freshman no essay scholarship");
+  pushGeneric("STEM scholarship open to all majors");
+  pushGeneric("scholarship open to all students");
+  pushGeneric("college scholarship application");
+
+  const allBaseQueries = [
+    ...specificFitFamily.values,
+    ...broadFitFamily.values,
+    ...genericFamily.values
+  ];
+  const hintedDomains = uniqueStrings(discoveryDomains).slice(0, 3);
+  for (const domain of hintedDomains) {
+    for (const query of allBaseQueries.slice(0, Math.max(2, Math.ceil(allBaseQueries.length / Math.max(hintedDomains.length, 1))))) {
+      if (specificFitFamily.values.length < 18) {
+        pushSpecific(`site:${domain} ${query}`);
+      } else if (broadFitFamily.values.length < 18) {
+        pushBroad(`site:${domain} ${query}`);
+      } else {
+        pushGeneric(`site:${domain} ${query}`);
+      }
+    }
+  }
+
+  return {
+    specificFit: specificFitFamily.values,
+    broadFit: broadFitFamily.values,
+    genericWidening: genericFamily.values
+  };
+}
+
+function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, discoveryDomains = [], manualRerun = false, freshStart = false }) {
+  const queryFamilies = buildDiscoveryQueryFamilies({ profile, studentStage, discoveryDomains });
+  const budget = allocateDiscoveryQueryBudget(maxQueries, { manualRerun, freshStart });
   const queries = [];
   const push = (value) => {
     const cleaned = cleanText(value);
@@ -239,50 +389,9 @@ function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, dis
     }
     queries.push(cleaned);
   };
-
-  // Precision-first family: strong major + stage intent.
-  if (majorTerms[0] && stageTerms[0]) push(`${majorTerms[0]} scholarship ${stageTerms[0]}`);
-  if (majorTerms[0] && state && stageTerms[0]) push(`${majorTerms[0]} scholarship ${state} ${stageTerms[0]}`);
-  if (ethnicityTerms[0] && majorTerms[0] && stageTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[0]}`);
-  if (majorTerms[0]) push(`${majorTerms[0]} scholarship incoming freshman`);
-  if (majorTerms[0]) push(`${majorTerms[0]} scholarship first-year student`);
-  if (majorTerms[0]) push(`${majorTerms[0]} undergraduate scholarship`);
-  if (majorTerms[0] && state) push(`${majorTerms[0]} undergraduate scholarship ${state}`);
-  if (majorTerms[0] && state) push(`${majorTerms[0]} scholarship ${state} incoming freshman`);
-  if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} incoming freshman scholarship`);
-  if (state && stageTerms[2]) push(`${state} ${stageTerms[2]} scholarship`);
-  if (majorTerms[0] && stageTerms[2]) push(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
-  if (ethnicityTerms[0] && stageTerms[2]) push(`${ethnicityTerms[0]} scholarship ${stageTerms[2]}`);
-
-  // Widening family: broader but still student-profile-aware.
-  if (majorTerms[0] && stageTerms[0]) push(`${majorTerms[0]} scholarships ${stageTerms[0]}`);
-  if (majorTerms[0] && stageTerms[0]) push(`${stageTerms[0]} ${majorTerms[0]} scholarship`);
-  if (ethnicityTerms[0] && stageTerms[0]) push(`${ethnicityTerms[0]} scholarship ${stageTerms[0]}`);
-  if (state && stageTerms[0]) push(`${state} ${stageTerms[0]} scholarship`);
-  if (majorTerms[0] && stageTerms[1]) push(`${majorTerms[0]} scholarship ${stageTerms[1]}`);
-  if (majorTerms[0] && state && stageTerms[1]) push(`${majorTerms[0]} scholarship ${state} ${stageTerms[1]}`);
-  if (ethnicityTerms[0] && majorTerms[0] && stageTerms[1]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[1]}`);
-  if (ethnicityTerms[0] && state && stageTerms[0]) push(`${ethnicityTerms[0]} scholarship ${state} ${stageTerms[0]}`);
-  if (majorTerms[0]) push(`${majorTerms[0]} scholarship undergraduate freshman`);
-  if (majorTerms[0] && state) push(`${majorTerms[0]} scholarship ${state} first-year student`);
-  if (majorTerms[0] && state) push(`${majorTerms[0]} scholarship ${state}`);
-  if (majorTerms[0]) push(`${majorTerms[0]} STEM scholarship`);
-  if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship`);
-  if (ethnicityTerms[0] && stageTerms[1]) push(`${ethnicityTerms[0]} scholarship ${stageTerms[1]}`);
-  if (ethnicityTerms[0] && state) push(`${ethnicityTerms[0]} scholarship ${state}`);
-  if (ethnicityTerms[0] && state) push(`${ethnicityTerms[0]} STEM scholarship ${state}`);
-  if (state && stageTerms[1]) push(`${state} ${stageTerms[1]} scholarship`);
-  if (majorTerms[0]) push(`${majorTerms[0]} scholarship`);
-  if (stageTerms[0]) push(`${stageTerms[0]} scholarship`);
-  push("college scholarship application");
-
-  const hintedDomains = uniqueStrings(discoveryDomains).slice(0, 3);
-  const baseQueries = [...queries];
-  for (const domain of hintedDomains) {
-    for (const query of baseQueries.slice(0, Math.max(1, Math.ceil(maxQueries / Math.max(hintedDomains.length, 1))))) {
-      push(`site:${domain} ${query}`);
-    }
-  }
+  queryFamilies.specificFit.slice(0, budget.specificFit).forEach(push);
+  queryFamilies.broadFit.slice(0, budget.broadFit).forEach(push);
+  queryFamilies.genericWidening.slice(0, budget.genericWidening).forEach(push);
 
   return queries.slice(0, Math.max(1, maxQueries));
 }
@@ -310,16 +419,64 @@ function buildDomainFeedbackStats(existingCandidates = []) {
   return stats;
 }
 
-function scoreDomainFeedback(domain, domainFeedbackStats) {
+function buildRecentDomainYieldStats(urlHistory, { withinHours = 24 * 14 } = {}) {
+  const now = Date.now();
+  const stats = new Map();
+  for (const record of urlHistory?.values?.() || []) {
+    const fetchedAtMs = Date.parse(String(record?.lastFetchedAt || ""));
+    if (!Number.isFinite(fetchedAtMs)) {
+      continue;
+    }
+    if ((now - fetchedAtMs) > (withinHours * 60 * 60 * 1000)) {
+      continue;
+    }
+    const domain = String(record?.sourceDomain || "").replace(/^www\./i, "");
+    if (!domain) {
+      continue;
+    }
+    const current = stats.get(domain) || {
+      direct: 0,
+      list: 0,
+      other: 0,
+      fetchError: 0
+    };
+    const pageType = String(record?.pageType || "");
+    if (pageType === "direct_scholarship") current.direct += 1;
+    else if (pageType === "scholarship_list_page") current.list += 1;
+    else if (pageType === "fetch_error") current.fetchError += 1;
+    else current.other += 1;
+    stats.set(domain, current);
+  }
+  return stats;
+}
+
+function scoreDomainFeedback(domain, domainFeedbackStats, recentDomainYieldStats = new Map()) {
   const normalizedDomain = String(domain || "").replace(/^www\./i, "").toLowerCase();
   const stats = domainFeedbackStats?.get(normalizedDomain);
-  if (!stats) {
-    return 0;
+  const yieldStats = recentDomainYieldStats?.get(normalizedDomain);
+
+  let score = 0;
+  if (stats) {
+    const positive = (stats.approved * 1.5) + (stats.submitted * 2) + (stats.pending * 0.1);
+    const negative = stats.rejected * 2.5;
+    score += Math.max(-6, Math.min(6, positive - negative));
+    if ((stats.rejected || 0) >= ((stats.approved || 0) + (stats.submitted || 0) + (stats.pending || 0) + 2)) {
+      score -= 2;
+    }
   }
 
-  const positive = (stats.approved * 2.5) + (stats.submitted * 3) + (stats.pending * 0.25);
-  const negative = stats.rejected * 1.5;
-  return Math.max(-4, Math.min(6, positive - negative));
+  if (yieldStats) {
+    if ((yieldStats.list || 0) >= 6 && (yieldStats.direct || 0) === 0) {
+      score -= 4;
+    } else if ((yieldStats.list || 0) >= Math.max(4, (yieldStats.direct || 0) * 4)) {
+      score -= 2.5;
+    }
+    if ((yieldStats.fetchError || 0) >= 3) {
+      score -= 1.5;
+    }
+  }
+
+  return Math.max(-8, Math.min(6, score));
 }
 
 function getRecentHistoryDomainCounts(urlHistory, { withinHours = 24 * 14 } = {}) {
@@ -1446,6 +1603,17 @@ function getStagePositiveTerms(studentStage = "", gradeLevel = "") {
 }
 
 function classifySearchResultSurface(result) {
+  const hintedSurface = normalizeText(result?.surfaceHint || result?.kind || "");
+  if (hintedSurface === "direct_scholarship") {
+    return "direct_likely";
+  }
+  if (hintedSurface === "scholarship_program_hub") {
+    return "program_hub_likely";
+  }
+  if (hintedSurface === "scholarship_list_page") {
+    return "list_likely";
+  }
+
   const title = cleanText(result?.title || "");
   const snippet = cleanText(result?.snippet || "");
   const parsedUrl = parseUrlSafely(result?.url || "");
@@ -1470,7 +1638,7 @@ function classifySearchResultSurface(result) {
   return "other";
 }
 
-function scoreSearchResultFitLikelihood(result, profile = {}, studentStage = "", domainFeedbackStats = new Map()) {
+function scoreSearchResultFitLikelihood(result, profile = {}, studentStage = "", domainFeedbackStats = new Map(), recentDomainYieldStats = new Map()) {
   const title = cleanText(result?.title || "");
   const snippet = cleanText(result?.snippet || "");
   const parsedUrl = parseUrlSafely(result?.url || "");
@@ -1488,6 +1656,8 @@ function scoreSearchResultFitLikelihood(result, profile = {}, studentStage = "",
   let score = 0;
   if (surfaceType === "direct_likely") {
     score += 5;
+  } else if (surfaceType === "program_hub_likely") {
+    score += 3.5;
   } else if (surfaceType === "list_likely") {
     score -= 2.5;
   }
@@ -1535,7 +1705,7 @@ function scoreSearchResultFitLikelihood(result, profile = {}, studentStage = "",
     score -= 5;
   }
 
-  score += scoreDomainFeedback(sourceDomain, domainFeedbackStats);
+  score += scoreDomainFeedback(sourceDomain, domainFeedbackStats, recentDomainYieldStats);
 
   return Number(score.toFixed(3));
 }
@@ -1597,8 +1767,14 @@ function dedupeSearchResults(results) {
 }
 
 function compareDiscoverySearchResults(left, right) {
+  const getSurfaceRank = (value) => {
+    if (value === "direct_likely") return 0;
+    if (value === "program_hub_likely") return 1;
+    if (value === "list_likely") return 2;
+    return 3;
+  };
   return (right.fitScore || 0) - (left.fitScore || 0)
-    || (left.surfaceType === "direct_likely" ? -1 : 0) - (right.surfaceType === "direct_likely" ? -1 : 0)
+    || getSurfaceRank(left.surfaceType) - getSurfaceRank(right.surfaceType)
     || (left.passPriority || 0) - (right.passPriority || 0)
     || (right.noveltyScore || 0) - (left.noveltyScore || 0)
     || (left.globalRank || 0) - (right.globalRank || 0);
@@ -1606,11 +1782,12 @@ function compareDiscoverySearchResults(left, right) {
 
 function rerankSearchResultsForDiscovery(results, urlHistory, profile, studentStage, logs = [], domainFeedbackStats = new Map()) {
   const recentDomainCounts = getRecentHistoryDomainCounts(urlHistory);
+  const recentDomainYieldStats = buildRecentDomainYieldStats(urlHistory);
   const reranked = dedupeSearchResults([...results]
     .map((result) => ({
       ...result,
       surfaceType: classifySearchResultSurface(result),
-      fitScore: scoreSearchResultFitLikelihood(result, profile, studentStage, domainFeedbackStats),
+      fitScore: scoreSearchResultFitLikelihood(result, profile, studentStage, domainFeedbackStats, recentDomainYieldStats),
       noveltyScore: scoreSearchResultNovelty(result, urlHistory, recentDomainCounts)
     }))
   )
@@ -1625,9 +1802,24 @@ function rerankSearchResultsForDiscovery(results, urlHistory, profile, studentSt
   return reranked;
 }
 
+function buildExistingCandidateIdentitySet(existingCandidates = []) {
+  const keys = new Set();
+  for (const candidate of existingCandidates || []) {
+    const id = cleanText(candidate?.id);
+    const sourceUrl = cleanText(candidate?.sourceUrl || candidate?.source_url);
+    const name = cleanText(candidate?.name || candidate?.title);
+    const sourceDomain = cleanText(candidate?.sourceDomain || candidate?.source_domain).toLowerCase();
+    if (id) keys.add(`id:${id}`);
+    if (sourceUrl) keys.add(`url:${normalizeDiscoveryUrl(sourceUrl)}`);
+    if (name && sourceDomain) keys.add(`name_domain:${name.toLowerCase()}::${sourceDomain}`);
+  }
+  return keys;
+}
+
 function selectInitialFrontier(results, logs = []) {
   const budgets = {
     direct_likely: MAX_TOP_LEVEL_DIRECT_FETCHES,
+    program_hub_likely: MAX_TOP_LEVEL_PROGRAM_HUB_FETCHES,
     list_likely: MAX_TOP_LEVEL_LIST_FETCHES,
     other: MAX_TOP_LEVEL_OTHER_FETCHES
   };
@@ -1663,7 +1855,7 @@ function selectInitialFrontier(results, logs = []) {
         ...result,
         expansionDepth: 0
       });
-      if (selected.length >= (MAX_TOP_LEVEL_DIRECT_FETCHES + MAX_TOP_LEVEL_LIST_FETCHES + MAX_TOP_LEVEL_OTHER_FETCHES)) {
+      if (selected.length >= (MAX_TOP_LEVEL_DIRECT_FETCHES + MAX_TOP_LEVEL_PROGRAM_HUB_FETCHES + MAX_TOP_LEVEL_LIST_FETCHES + MAX_TOP_LEVEL_OTHER_FETCHES)) {
         break;
       }
     }
@@ -1674,7 +1866,7 @@ function selectInitialFrontier(results, logs = []) {
     acc[surfaceType] = (acc[surfaceType] || 0) + 1;
     return acc;
   }, {});
-  logs.push(`[frontier] selected top_level direct=${counts.direct_likely || 0} list=${counts.list_likely || 0} other=${counts.other || 0}`);
+  logs.push(`[frontier] selected top_level direct=${counts.direct_likely || 0} program=${counts.program_hub_likely || 0} list=${counts.list_likely || 0} other=${counts.other || 0}`);
   return selected;
 }
 
@@ -1963,6 +2155,200 @@ async function maybeRefineAmbiguousCandidatesWithAi({
   }
 }
 
+function shouldExpandDiscoverySearchWithAi(results = []) {
+  const topResults = (results || []).slice(0, 15);
+  const strongDirect = topResults.filter((item) => item.surfaceType === "direct_likely" && Number(item.fitScore || 0) >= 7).length;
+  const strongPrograms = topResults.filter((item) => item.surfaceType === "program_hub_likely" && Number(item.fitScore || 0) >= 6).length;
+  const highFit = topResults.filter((item) => Number(item.fitScore || 0) >= 6).length;
+  const directLike = topResults.filter((item) => ["direct_likely", "program_hub_likely"].includes(item.surfaceType)).length;
+
+  const weak = topResults.length === 0
+    || (strongDirect + strongPrograms) < 3
+    || highFit < 6
+    || directLike < 4;
+
+  return {
+    weak,
+    strongDirect,
+    strongPrograms,
+    highFit,
+    directLike
+  };
+}
+
+function shouldExpandDiscoverySearchAfterHistory(fetchableFrontier = [], skippedByHistory = [], originalFrontier = []) {
+  const fetchableDirectLike = fetchableFrontier.filter((item) => ["direct_likely", "program_hub_likely"].includes(item?.surfaceType)).length;
+  const fetchableListLike = fetchableFrontier.filter((item) => item?.surfaceType === "list_likely").length;
+  const skippedCount = skippedByHistory.length;
+  const originalCount = originalFrontier.length;
+
+  const weak = originalCount > 0 && (
+    fetchableFrontier.length === 0
+    || fetchableDirectLike < 3
+    || fetchableFrontier.length < 5
+    || skippedCount > fetchableFrontier.length
+    || (fetchableListLike >= fetchableFrontier.length && fetchableDirectLike === 0)
+  );
+
+  return {
+    weak,
+    originalCount,
+    fetchableCount: fetchableFrontier.length,
+    fetchableDirectLike,
+    fetchableListLike,
+    skippedByHistory: skippedCount
+  };
+}
+
+async function maybeExpandSearchResultsWithAi({
+  profile,
+  studentStage = "",
+  queries = [],
+  rankedSearchResults = [],
+  existingCandidates = [],
+  fetchImpl = globalThis.fetch,
+  searchTimeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+  searchConcurrency = DEFAULT_SEARCH_CONCURRENCY,
+  logs = [],
+  braveApiKey = "",
+  timeoutMs = 45000,
+  enabled = true,
+  expandImpl = null,
+  force = false,
+  triggerReason = "pre_frontier",
+  frontierStats = null
+} = {}) {
+  if (!enabled) {
+    return {
+      additionalResults: [],
+      additionalQueries: [],
+      metadata: { mode: "disabled" }
+    };
+  }
+
+  const expansionNeed = shouldExpandDiscoverySearchWithAi(rankedSearchResults);
+  if (!force && !expansionNeed.weak) {
+    logs.push(`[ai-search] skipped trigger=${triggerReason} weak_frontier=no strong_direct=${expansionNeed.strongDirect} strong_programs=${expansionNeed.strongPrograms} high_fit=${expansionNeed.highFit}`);
+    return {
+      additionalResults: [],
+      additionalQueries: [],
+      metadata: {
+        mode: "skipped",
+        reason: "frontier_strong_enough",
+        triggerReason,
+        ...expansionNeed
+      }
+    };
+  }
+
+  try {
+    const expander = expandImpl
+      || (await import("./discoveryAiAssist.js")).expandDiscoverySearchWithAi;
+    const aiExpansion = await expander({
+      profile,
+      studentStage,
+      attemptedQueries: queries,
+      topSearchResults: rankedSearchResults.slice(0, 15),
+      existingCandidates,
+      timeoutMs
+    });
+
+    const existingQueryKeys = new Set((queries || []).map((value) => normalizeText(value)));
+    const aiQueryStrings = uniqueStrings((aiExpansion?.queries || []).map((item) => item?.query))
+      .filter((query) => !existingQueryKeys.has(normalizeText(query)))
+      .slice(0, 6);
+    const existingUrlKeys = new Set((rankedSearchResults || []).map((item) => normalizeDiscoveryUrl(item?.url || "")));
+    const aiUrlSuggestions = (aiExpansion?.urls || [])
+      .filter((item) => /^https?:\/\//i.test(String(item?.url || "")))
+      .filter((item) => !existingUrlKeys.has(normalizeDiscoveryUrl(item.url)))
+      .slice(0, 8);
+
+    for (const note of aiExpansion?.notes || []) {
+      logs.push(`[ai-search-note] ${cleanText(note)}`);
+    }
+
+    logs.push(`[ai-search] running trigger=${triggerReason} force=${force ? "yes" : "no"}`);
+    const additionalResults = [];
+    if (aiQueryStrings.length > 0) {
+      logs.push(`[ai-search] expanding with ${aiQueryStrings.length} follow-up quer${aiQueryStrings.length === 1 ? "y" : "ies"}`);
+      const aiQueryResults = await searchQueries(aiQueryStrings, {
+        fetchImpl,
+        perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, 8),
+        timeoutMs: searchTimeoutMs,
+        concurrency: searchConcurrency,
+        logs,
+        braveApiKey
+      });
+      additionalResults.push(...aiQueryResults.map((result) => ({
+        ...result,
+        searchPass: "ai_expansion_query",
+        passPriority: 2
+      })));
+    }
+
+    additionalResults.push(...aiUrlSuggestions.map((item, index) => ({
+      query: "[ai expansion url]",
+      title: cleanText(item?.title || ""),
+      url: String(item?.url || ""),
+      snippet: cleanText(item?.rationale || ""),
+      rank: index + 1,
+      searchPass: "ai_expansion_url",
+      passPriority: 1,
+      surfaceHint: item?.kind || "",
+      aiRationale: cleanText(item?.rationale || "")
+    })));
+
+    logs.push(`[ai-search] added ${aiQueryStrings.length} quer${aiQueryStrings.length === 1 ? "y" : "ies"} and ${aiUrlSuggestions.length} URL suggestion(s)`);
+
+    return {
+      additionalResults,
+      additionalQueries: aiQueryStrings,
+      metadata: {
+        ...(aiExpansion?.metadata || { mode: "ai_search_expansion" }),
+        triggerReason,
+        ...expansionNeed,
+        frontierStats,
+        used: true,
+        forced: force,
+        suggestedQueries: aiQueryStrings.length,
+        suggestedUrls: aiUrlSuggestions.length,
+        resultingResults: additionalResults.length
+      }
+    };
+  } catch (error) {
+    logs.push(`[ai-search-error] ${error?.message || String(error)}`);
+    return {
+      additionalResults: [],
+      additionalQueries: [],
+      metadata: {
+        mode: "failed",
+        triggerReason,
+        reason: error?.message || String(error)
+      }
+    };
+  }
+}
+
+function mergeDiscoverySearchResultsWithExpansion(baseResults, additionalResults) {
+  const existingNormalized = new Set((baseResults || []).map((item) => normalizeDiscoveryUrl(item?.url || "")));
+  const merged = [...baseResults];
+  let nextGlobalRank = merged.length + 1;
+  for (const result of additionalResults || []) {
+    const normalized = normalizeDiscoveryUrl(result?.url || "");
+    if (!normalized || existingNormalized.has(normalized)) {
+      continue;
+    }
+    existingNormalized.add(normalized);
+    merged.push({
+      ...result,
+      globalRank: nextGlobalRank,
+      expansionDepth: 0
+    });
+    nextGlobalRank += 1;
+  }
+  return merged;
+}
+
 export async function discoverScholarshipCandidates({
   sessionId,
   documents,
@@ -1979,9 +2365,13 @@ export async function discoverScholarshipCandidates({
   pageConcurrency = DEFAULT_PAGE_CONCURRENCY,
   maxListExpansionDepth = DEFAULT_MAX_LIST_EXPANSION_DEPTH,
   manualRerun = false,
+  freshStart = false,
   aiTimeoutMs = 45000,
   aiPageClassifierTimeoutMs = 30000,
+  aiSearchExpansionTimeoutMs = 45000,
+  aiSearchExpansionImpl = null,
   aiClassifyPageEvaluationsImpl = null,
+  enableAiSearchExpansion = String(process.env.DISCOVERY_ENABLE_AI_SEARCH_EXPANSION || "1") !== "0" && fetchImpl === globalThis.fetch,
   enableAiPageClassifier = String(process.env.DISCOVERY_ENABLE_AI_PAGE_CLASSIFIER || "1") !== "0" && fetchImpl === globalThis.fetch,
   enableUrlHistory = String(process.env.DISCOVERY_ENABLE_URL_HISTORY || "1") !== "0" && fetchImpl === globalThis.fetch,
   braveApiKey = String(process.env.BRAVE_SEARCH_API_KEY || process.env.DISCOVERY_BRAVE_API_KEY || "").trim()
@@ -1990,6 +2380,7 @@ export async function discoverScholarshipCandidates({
   const errors = [];
   const urlHistory = enableUrlHistory ? await loadDiscoveryUrlHistory() : new Map();
   const domainFeedbackStats = buildDomainFeedbackStats(existingCandidates);
+  const existingCandidateIdentities = buildExistingCandidateIdentitySet(existingCandidates);
   const ingestion = await processSessionDocuments({
     sessionId,
     documents,
@@ -1998,39 +2389,65 @@ export async function discoverScholarshipCandidates({
   const mergedProfile = ingestion.mergedProfile || {};
   logs.push("[profile] parsed student documents");
 
-  const rawQueries = buildDiscoveryQueries({
+  const queryBudget = allocateDiscoveryQueryBudget(discoveryQueryBudget, { manualRerun, freshStart });
+  const queryFamilies = buildDiscoveryQueryFamilies({
     profile: mergedProfile,
     studentStage,
-    maxQueries: discoveryQueryBudget,
     discoveryDomains
   });
-  const queries = diversifyQueriesWithHistory(rawQueries, {
+  const specificFitQueries = diversifyQueriesWithHistory(queryFamilies.specificFit, {
     urlHistory,
     domainFeedbackStats,
     studentStage,
-    maxQueries: discoveryQueryBudget,
+    maxQueries: queryBudget.specificFit,
     logs
-  });
+  }).slice(0, queryBudget.specificFit);
+  const broadFitQueries = diversifyQueriesWithHistory(queryFamilies.broadFit, {
+    urlHistory,
+    domainFeedbackStats,
+    studentStage,
+    maxQueries: queryBudget.broadFit,
+    logs
+  }).slice(0, queryBudget.broadFit);
+  const genericWideningQueries = diversifyQueriesWithHistory(queryFamilies.genericWidening, {
+    urlHistory,
+    domainFeedbackStats,
+    studentStage,
+    maxQueries: queryBudget.genericWidening,
+    logs
+  }).slice(0, queryBudget.genericWidening);
+  const queries = uniqueStrings([
+    ...specificFitQueries,
+    ...broadFitQueries,
+    ...genericWideningQueries
+  ]).slice(0, Math.max(1, discoveryQueryBudget));
   logs.push(`[query] generated ${queries.length} search quer${queries.length === 1 ? "y" : "ies"}`);
+  logs.push(`[query-allocation] specific_fit=${specificFitQueries.length} broad_fit=${broadFitQueries.length} generic_widening=${genericWideningQueries.length}`);
 
-  const precisionQueries = queries.slice(0, Math.min(DEFAULT_PRECISION_QUERY_COUNT, queries.length));
-  const wideningQueries = queries.slice(precisionQueries.length);
   const searchPassConfigs = [
     {
-      name: "precision",
+      name: "specific_fit",
       priority: 0,
-      queries: precisionQueries,
-      perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, Math.max(PRECISION_RESULTS_PER_QUERY, discoveryMaxResults))
+      queries: specificFitQueries,
+      perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, Math.max(SPECIFIC_FIT_RESULTS_PER_QUERY, discoveryMaxResults))
     },
     {
-      name: "widening",
+      name: "broad_fit",
       priority: 1,
-      queries: wideningQueries,
-      perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, Math.max(WIDENING_RESULTS_PER_QUERY, discoveryMaxResults))
+      queries: broadFitQueries,
+      perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, Math.max(BROAD_FIT_RESULTS_PER_QUERY, discoveryMaxResults))
+    },
+    {
+      name: "generic_widening",
+      priority: 2,
+      queries: genericWideningQueries,
+      perQuery: Math.min(MAX_SEARCH_RESULTS_PER_QUERY, Math.max(GENERIC_WIDENING_RESULTS_PER_QUERY, discoveryMaxResults))
     }
   ];
 
   let searchResults = [];
+  const aiSearchExpansionAttempts = [];
+  let aiSearchExpansionMetadata = { mode: "skipped", reason: "not_attempted", attempts: aiSearchExpansionAttempts };
   try {
     searchResults = await runSearchPasses(searchPassConfigs, {
       fetchImpl,
@@ -2048,7 +2465,9 @@ export async function discoverScholarshipCandidates({
     globalRank: index + 1,
     expansionDepth: 0
   }));
-  const discoveryRankedSearchResults = rerankSearchResultsForDiscovery(
+  let discoveryQueries = [...queries];
+  let searchUniverseResults = rankedSearchResults;
+  let discoveryRankedSearchResults = rerankSearchResultsForDiscovery(
     rankedSearchResults,
     urlHistory,
     mergedProfile,
@@ -2056,6 +2475,45 @@ export async function discoverScholarshipCandidates({
     logs,
     domainFeedbackStats
   );
+  const aiSearchExpansion = await maybeExpandSearchResultsWithAi({
+    profile: mergedProfile,
+    studentStage,
+    queries: discoveryQueries,
+    rankedSearchResults: discoveryRankedSearchResults,
+    existingCandidates,
+    fetchImpl,
+    searchTimeoutMs,
+    searchConcurrency,
+    logs,
+    braveApiKey,
+    timeoutMs: aiSearchExpansionTimeoutMs,
+    enabled: enableAiSearchExpansion,
+    expandImpl: aiSearchExpansionImpl,
+    triggerReason: "pre_frontier"
+  });
+  aiSearchExpansionAttempts.push(aiSearchExpansion.metadata);
+  if (aiSearchExpansion.additionalQueries.length > 0) {
+    discoveryQueries = uniqueStrings([...discoveryQueries, ...aiSearchExpansion.additionalQueries]);
+  }
+  if (aiSearchExpansion.additionalResults.length > 0) {
+    const combinedSearchResults = mergeDiscoverySearchResultsWithExpansion(
+      searchUniverseResults,
+      aiSearchExpansion.additionalResults
+    );
+    searchUniverseResults = combinedSearchResults;
+    discoveryRankedSearchResults = rerankSearchResultsForDiscovery(
+      combinedSearchResults,
+      urlHistory,
+      mergedProfile,
+      studentStage,
+      logs,
+      domainFeedbackStats
+    );
+  }
+  aiSearchExpansionMetadata = {
+    ...(aiSearchExpansion.metadata || {}),
+    attempts: aiSearchExpansionAttempts
+  };
   const initialFrontier = selectInitialFrontier(discoveryRankedSearchResults, logs);
   logs.push(`[search] collected ${discoveryRankedSearchResults.length} raw URL candidate(s)`);
   const historyTimestamp = new Date().toISOString();
@@ -2081,17 +2539,22 @@ export async function discoverScholarshipCandidates({
   let totalSkippedPages = 0;
   let totalHistorySkippedPages = 0;
   let aiPageReviewMetadata = { mode: "skipped", reason: "no_borderline_pages" };
-  const effectiveMaxListExpansionDepth = manualRerun
+  const aggressiveExploration = manualRerun || freshStart;
+  const effectiveMaxListExpansionDepth = aggressiveExploration
     ? Math.max(maxListExpansionDepth, DEFAULT_MAX_LIST_EXPANSION_DEPTH + 1)
     : maxListExpansionDepth;
 
-  if (manualRerun && effectiveMaxListExpansionDepth > maxListExpansionDepth) {
-    logs.push(`[depth-policy] manual_rerun=yes base_max_depth=${maxListExpansionDepth} effective_max_depth=${effectiveMaxListExpansionDepth} depth3_requires_promising_list_page=yes`);
+  if (aggressiveExploration && effectiveMaxListExpansionDepth > maxListExpansionDepth) {
+    logs.push(`[depth-policy] manual_rerun=${manualRerun ? "yes" : "no"} fresh_start=${freshStart ? "yes" : "no"} base_max_depth=${maxListExpansionDepth} effective_max_depth=${effectiveMaxListExpansionDepth} depth3_requires_promising_list_page=yes`);
   } else {
-    logs.push(`[depth-policy] manual_rerun=${manualRerun ? "yes" : "no"} effective_max_depth=${effectiveMaxListExpansionDepth}`);
+    logs.push(`[depth-policy] manual_rerun=${manualRerun ? "yes" : "no"} fresh_start=${freshStart ? "yes" : "no"} effective_max_depth=${effectiveMaxListExpansionDepth}`);
   }
 
-  while (frontier.length > 0) {
+  let aiPostHistoryExpansionAttempted = false;
+  let aiPostFilterRescueAttempted = false;
+
+  while (true) {
+    while (frontier.length > 0) {
     const fetchableFrontier = [];
     const skippedByHistory = [];
     for (const result of frontier) {
@@ -2100,17 +2563,19 @@ export async function discoverScholarshipCandidates({
         continue;
       }
       const historyDecision = shouldSkipUrlByHistory(result.url, urlHistory, Date.now());
-      const highFitManualBypass = manualRerun
-        && Number(result.fitScore || 0) >= 11
+      const historyBypassScoreThreshold = freshStart ? 9 : 11;
+      const historyBypassMinAgeMs = freshStart ? 0 : (2 * 60 * 60 * 1000);
+      const highFitHistoryBypass = aggressiveExploration
+        && Number(result.fitScore || 0) >= historyBypassScoreThreshold
         && (
           historyDecision.pageType === "direct_scholarship"
           || historyDecision.pageType === "scholarship_list_page"
         )
         && (
           historyDecision.ageMs === null
-          || historyDecision.ageMs >= (2 * 60 * 60 * 1000)
+          || historyDecision.ageMs >= historyBypassMinAgeMs
         );
-      if (highFitManualBypass) {
+      if (highFitHistoryBypass) {
         logs.push(`[history-bypass] depth=${result.expansionDepth} fit=${Number(result.fitScore || 0).toFixed(1)} page_type=${historyDecision.pageType || "unknown"} url=${formatUrlForLog(result.url)}`);
         fetchableFrontier.push(result);
         continue;
@@ -2125,10 +2590,19 @@ export async function discoverScholarshipCandidates({
       });
     }
 
-    if (enableUrlHistory && skippedByHistory.length > 0 && fetchableFrontier.length === 0) {
+    const shouldTopUpFreshFrontier = enableUrlHistory
+      && freshStart
+      && skippedByHistory.length > 0
+      && fetchableFrontier.length > 0
+      && fetchableFrontier.length < MIN_FRESH_START_FRONTIER;
+
+    if (enableUrlHistory && skippedByHistory.length > 0 && (fetchableFrontier.length === 0 || shouldTopUpFreshFrontier)) {
+      const frontierShortfall = fetchableFrontier.length === 0
+        ? MAX_HISTORY_REVISIT_PER_PASS
+        : Math.max(1, MIN_FRESH_START_FRONTIER - fetchableFrontier.length);
       const revisitBudget = Math.min(
         MAX_HISTORY_REVISIT_PER_PASS,
-        Math.max(1, Math.min(MAX_HISTORY_REVISIT_PER_PASS, skippedByHistory.length))
+        Math.max(1, Math.min(frontierShortfall, skippedByHistory.length))
       );
       const revisitCandidates = skippedByHistory
         .filter(({ historyDecision }) => (
@@ -2175,6 +2649,64 @@ export async function discoverScholarshipCandidates({
         skipCounts.set(skipReason, (skipCounts.get(skipReason) || 0) + 1);
         const ageHours = item.historyDecision.ageMs === null ? "?" : Math.round(item.historyDecision.ageMs / (60 * 60 * 1000));
         logs.push(`[history-skip] depth=${item.result.expansionDepth} page_type=${item.historyDecision.pageType || "unknown"} age_hours=${ageHours} url=${formatUrlForLog(item.result.url)}`);
+      }
+    }
+
+    const historyWeakness = shouldExpandDiscoverySearchAfterHistory(fetchableFrontier, skippedByHistory, frontier);
+    if (
+      !aiPostHistoryExpansionAttempted
+      && frontier.some((item) => Number(item?.expansionDepth || 0) === 0)
+      && historyWeakness.weak
+    ) {
+      aiPostHistoryExpansionAttempted = true;
+      const aiHistoryExpansion = await maybeExpandSearchResultsWithAi({
+        profile: mergedProfile,
+        studentStage,
+        queries: discoveryQueries,
+        rankedSearchResults: discoveryRankedSearchResults,
+        existingCandidates,
+        fetchImpl,
+        searchTimeoutMs,
+        searchConcurrency,
+        logs,
+        braveApiKey,
+        timeoutMs: aiSearchExpansionTimeoutMs,
+        enabled: enableAiSearchExpansion,
+        expandImpl: aiSearchExpansionImpl,
+        force: true,
+        triggerReason: "post_history",
+        frontierStats: historyWeakness
+      });
+      aiSearchExpansionAttempts.push(aiHistoryExpansion.metadata);
+      aiSearchExpansionMetadata = {
+        ...(aiHistoryExpansion.metadata || {}),
+        attempts: aiSearchExpansionAttempts
+      };
+      if (aiHistoryExpansion.additionalQueries.length > 0) {
+        discoveryQueries = uniqueStrings([...discoveryQueries, ...aiHistoryExpansion.additionalQueries]);
+      }
+      if (aiHistoryExpansion.additionalResults.length > 0) {
+        searchUniverseResults = mergeDiscoverySearchResultsWithExpansion(
+          searchUniverseResults,
+          aiHistoryExpansion.additionalResults
+        );
+        discoveryRankedSearchResults = rerankSearchResultsForDiscovery(
+          searchUniverseResults,
+          urlHistory,
+          mergedProfile,
+          studentStage,
+          logs,
+          domainFeedbackStats
+        );
+        const supplementalFrontier = selectInitialFrontier(discoveryRankedSearchResults, logs)
+          .filter((item) => !fetchedSeenUrls.has(item.url));
+        if (supplementalFrontier.length > 0) {
+          for (const item of supplementalFrontier) {
+            fetchedSeenUrls.add(item.url);
+            fetchableFrontier.push(item);
+          }
+          logs.push(`[ai-search] post_history_topup added ${supplementalFrontier.length} top-level URL(s)`);
+        }
       }
     }
 
@@ -2358,6 +2890,27 @@ export async function discoverScholarshipCandidates({
             studentStage,
             searchRank: item.result.globalRank
           });
+          const existingIdentityKeys = [
+            cleanText(rescuedExtraction.candidate?.id) ? `id:${cleanText(rescuedExtraction.candidate.id)}` : "",
+            cleanText(rescuedExtraction.candidate?.sourceUrl) ? `url:${normalizeDiscoveryUrl(rescuedExtraction.candidate.sourceUrl)}` : "",
+            cleanText(rescuedExtraction.candidate?.name) && cleanText(rescuedExtraction.candidate?.sourceDomain)
+              ? `name_domain:${cleanText(rescuedExtraction.candidate.name).toLowerCase()}::${cleanText(rescuedExtraction.candidate.sourceDomain).toLowerCase()}`
+              : ""
+          ].filter(Boolean);
+          if (existingIdentityKeys.some((key) => existingCandidateIdentities.has(key))) {
+            skipCounts.set("already_reviewed_or_known", (skipCounts.get("already_reviewed_or_known") || 0) + 1);
+            logs.push(`[reject] depth=${item.result.expansionDepth} reason=already_reviewed_or_known url=${formatUrlForLog(item.result.url)}`);
+            historyUpdates.push(buildHistoryUpdate({
+              url: item.result.url,
+              query: item.result.query,
+              sourceDomain: parseUrlSafely(item.result.url)?.hostname.replace(/^www\./i, "") || "",
+              pageType: "direct_scholarship",
+              candidate: rescuedExtraction.candidate,
+              error: "already_reviewed_or_known",
+              timestamp: historyTimestamp
+            }));
+            continue;
+          }
           if (!scoring.isEligible) {
             skipCounts.set("profile_ineligible", (skipCounts.get("profile_ineligible") || 0) + 1);
             logs.push(`[reject] depth=${item.result.expansionDepth} reason=profile_ineligible blockers=${scoring.eligibilityBlockers.join(",") || "unknown"} url=${formatUrlForLog(item.result.url)}`);
@@ -2512,6 +3065,27 @@ export async function discoverScholarshipCandidates({
         studentStage,
         searchRank: item.result.globalRank
       });
+      const existingIdentityKeys = [
+        cleanText(item.extraction.candidate?.id) ? `id:${cleanText(item.extraction.candidate.id)}` : "",
+        cleanText(item.extraction.candidate?.sourceUrl) ? `url:${normalizeDiscoveryUrl(item.extraction.candidate.sourceUrl)}` : "",
+        cleanText(item.extraction.candidate?.name) && cleanText(item.extraction.candidate?.sourceDomain)
+          ? `name_domain:${cleanText(item.extraction.candidate.name).toLowerCase()}::${cleanText(item.extraction.candidate.sourceDomain).toLowerCase()}`
+          : ""
+      ].filter(Boolean);
+      if (existingIdentityKeys.some((key) => existingCandidateIdentities.has(key))) {
+        skipCounts.set("already_reviewed_or_known", (skipCounts.get("already_reviewed_or_known") || 0) + 1);
+        logs.push(`[reject] depth=${item.result.expansionDepth} reason=already_reviewed_or_known url=${formatUrlForLog(item.result.url)}`);
+        historyUpdates.push(buildHistoryUpdate({
+          url: item.result.url,
+          query: item.result.query,
+          sourceDomain: parseUrlSafely(item.result.url)?.hostname.replace(/^www\./i, "") || "",
+          pageType: "direct_scholarship",
+          candidate: item.extraction.candidate,
+          error: "already_reviewed_or_known",
+          timestamp: historyTimestamp
+        }));
+        continue;
+      }
       if (!scoring.isEligible) {
         skipCounts.set("profile_ineligible", (skipCounts.get("profile_ineligible") || 0) + 1);
         logs.push(`[reject] depth=${item.result.expansionDepth} reason=profile_ineligible blockers=${scoring.eligibilityBlockers.join(",") || "unknown"} url=${formatUrlForLog(item.result.url)}`);
@@ -2555,6 +3129,63 @@ export async function discoverScholarshipCandidates({
     frontier = expandedChildResults;
   }
 
+    if (extracted.length === 0 && !aiPostFilterRescueAttempted) {
+      aiPostFilterRescueAttempted = true;
+      const aiRescueExpansion = await maybeExpandSearchResultsWithAi({
+        profile: mergedProfile,
+        studentStage,
+        queries: discoveryQueries,
+        rankedSearchResults: discoveryRankedSearchResults,
+        existingCandidates,
+        fetchImpl,
+        searchTimeoutMs,
+        searchConcurrency,
+        logs,
+        braveApiKey,
+        timeoutMs: aiSearchExpansionTimeoutMs,
+        enabled: enableAiSearchExpansion,
+        expandImpl: aiSearchExpansionImpl,
+        force: true,
+        triggerReason: "post_filter_rescue",
+        frontierStats: {
+          extractedCount: extracted.length,
+          historySkippedPages: totalHistorySkippedPages,
+          topLevelSearchResults: discoveryRankedSearchResults.length
+        }
+      });
+      aiSearchExpansionAttempts.push(aiRescueExpansion.metadata);
+      aiSearchExpansionMetadata = {
+        ...(aiRescueExpansion.metadata || {}),
+        attempts: aiSearchExpansionAttempts
+      };
+      if (aiRescueExpansion.additionalQueries.length > 0) {
+        discoveryQueries = uniqueStrings([...discoveryQueries, ...aiRescueExpansion.additionalQueries]);
+      }
+      if (aiRescueExpansion.additionalResults.length > 0) {
+        searchUniverseResults = mergeDiscoverySearchResultsWithExpansion(
+          searchUniverseResults,
+          aiRescueExpansion.additionalResults
+        );
+        discoveryRankedSearchResults = rerankSearchResultsForDiscovery(
+          searchUniverseResults,
+          urlHistory,
+          mergedProfile,
+          studentStage,
+          logs,
+          domainFeedbackStats
+        );
+        frontier = selectInitialFrontier(discoveryRankedSearchResults, logs)
+          .filter((item) => !fetchedSeenUrls.has(item.url));
+        if (frontier.length > 0) {
+          logs.push(`[ai-search] post_filter_rescue queued ${frontier.length} top-level URL(s)`);
+          continue;
+        }
+      }
+    }
+
+    break;
+  }
+
   let rankedCandidates = dedupeRankedCandidates(extracted);
   const aiRefinement = await maybeRefineAmbiguousCandidatesWithAi({
     profile: mergedProfile,
@@ -2580,14 +3211,15 @@ export async function discoverScholarshipCandidates({
 
   return {
     mergedProfile,
-    queries,
+    queries: discoveryQueries,
     candidates: finalCandidates,
     diagnostics: {
-      searchResults: rankedSearchResults.length,
+      searchResults: discoveryRankedSearchResults.length,
       fetchedPages: totalFetchedPages,
       skippedPages: totalSkippedPages,
       historySkippedPages: totalHistorySkippedPages,
       extractedCandidates: extracted.length,
+      aiSearchExpansion: aiSearchExpansionMetadata,
       aiPageClassifier: aiPageReviewMetadata,
       aiRefinement: aiRefinement.metadata
     },
@@ -2597,6 +3229,8 @@ export async function discoverScholarshipCandidates({
 }
 
 export const __testables = {
+  allocateDiscoveryQueryBudget,
+  buildDiscoveryQueryFamilies,
   buildDiscoveryQueries,
   parseBraveWebSearchResults,
   buildCandidateFromPage,
@@ -2604,6 +3238,7 @@ export const __testables = {
   scoreSearchResultFitLikelihood,
   rerankSearchResultsForDiscovery,
   selectInitialFrontier,
+  shouldExpandDiscoverySearchWithAi,
   extractLikelyScholarshipLinks,
   normalizeDateString,
   extractDeadline,

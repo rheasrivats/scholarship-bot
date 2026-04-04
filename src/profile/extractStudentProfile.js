@@ -9,16 +9,33 @@ function cleanValue(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function normalizeLabelMatchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function lineContainsLabelPhrase(line, label) {
+  const normalizedLine = normalizeLabelMatchText(line);
+  const normalizedLabel = normalizeLabelMatchText(label);
+  if (!normalizedLine || !normalizedLabel) return false;
+  if (normalizedLine === normalizedLabel) return true;
+  if (normalizedLine.startsWith(`${normalizedLabel} `)) return true;
+  if (normalizedLine.endsWith(` ${normalizedLabel}`)) return true;
+  return normalizedLine.includes(` ${normalizedLabel} `);
+}
+
 function findFieldValue(text, labels) {
   const lines = text.split("\n");
-  const normalizedLabels = labels.map((label) => label.toLowerCase());
+  const normalizedLabels = labels.map((label) => String(label || "").toLowerCase().trim()).filter(Boolean);
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     const lower = line.toLowerCase();
 
     for (const label of normalizedLabels) {
-      if (!lower.includes(label)) {
+      if (!lineContainsLabelPhrase(lower, label)) {
         continue;
       }
 
@@ -32,9 +49,13 @@ function findFieldValue(text, labels) {
         return cleanValue(colonValueMatch[1]);
       }
 
-      const afterLabel = line.slice(lower.indexOf(label) + label.length).trim();
-      if (afterLabel) {
-        return cleanValue(afterLabel);
+      const trimmedLine = line.trimStart();
+      const trimmedLower = lower.trimStart();
+      if (trimmedLower.startsWith(label)) {
+        const afterLabel = trimmedLine.slice(label.length).replace(/^[:\-\t\s]+/, "").trim();
+        if (afterLabel) {
+          return cleanValue(afterLabel);
+        }
       }
 
       let j = i + 1;
@@ -213,6 +234,75 @@ function parseUcCurrentGradeLevel(rawText) {
   return gradeLines[gradeLines.length - 1];
 }
 
+function parseStateValue(rawText) {
+  const candidates = [
+    firstMatch(rawText, /(?:^|\n)\s*State\s*\t+([^\n]+)/im),
+    firstMatch(rawText, /(?:^|\n)\s*State\s*\n([^\n]+)/im),
+    firstMatch(rawText, /(?:^|\n)\s*State\s*:\s*([^\n]+)/im),
+    firstMatch(rawText, /(?:^|\n)\s*State\/Province\s*\n([^\n]+)/im)
+  ]
+    .map((value) => cleanValue(value))
+    .filter(Boolean);
+
+  for (const value of candidates) {
+    if (/(student id|ssid|school code|code|number)/i.test(value)) continue;
+    if (/^[A-Za-z]{2}$/.test(value) || /^[A-Za-z][A-Za-z .'-]{2,40}$/.test(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function parseUcPrimaryMajor(rawText) {
+  const chooseMajorsBlockMatch = rawText.match(/Choose majors([\s\S]{0,4500})/i);
+  if (!chooseMajorsBlockMatch?.[1]) return null;
+
+  const section = chooseMajorsBlockMatch[1]
+    .split(/\n/)
+    .map((line) => cleanValue(line))
+    .filter((line) => line && !isPageMarkerLine(line));
+
+  const stripCampusPrefix = (value) => String(value || "")
+    .replace(
+      /^UC\s+(Davis|Merced|Riverside|Santa Barbara|Berkeley|Irvine|Los Angeles|San Diego|Santa Cruz)\s+/i,
+      ""
+    )
+    .trim();
+
+  const normalizeMajorLine = (line) => {
+    const strippedLine = stripCampusPrefix(line);
+    const degreePrefix = strippedLine.split(/,\s*B\.[A-Z.]+/i)[0];
+    const cleaned = cleanValue(degreePrefix);
+    if (!cleaned) return null;
+    if (/(undergraduate|undeclared|alternate major|school of|college of|campus\s+major|do you want to select)/i.test(cleaned)) {
+      return null;
+    }
+    return cleaned;
+  };
+
+  for (let i = 0; i < section.length; i += 1) {
+    const line = section[i];
+    if (!/^UC\s+[A-Za-z]/.test(line)) continue;
+
+    if (/,\s*B\.[A-Z.]+/i.test(line)) {
+      const major = normalizeMajorLine(line);
+      if (major) return major;
+    }
+
+    for (let j = i + 1; j < Math.min(section.length, i + 6); j += 1) {
+      const candidateLine = section[j];
+      if (/^UC\s+[A-Za-z]/.test(candidateLine)) break;
+      if (/,\s*B\.[A-Z.]+/i.test(candidateLine)) {
+        const major = normalizeMajorLine(candidateLine);
+        if (major) return major;
+      }
+    }
+  }
+
+  return null;
+}
+
 function inferEthnicity(text) {
   const hispanicLineValue = firstMatch(text, /hispanic\s*\/\s*latino\s*\t+([^\n]+)/i);
   if (hispanicLineValue) {
@@ -338,16 +428,13 @@ export function extractProfileFromText(rawText, sourceDocumentId) {
   const addressLine1 = findFieldValue(rawText, ["address line 1", "street address", "mailing address line 1"]);
   const addressLine2 = findFieldValue(rawText, ["address line 2", "apt, suite, unit, building, etc.", "apartment", "suite"]);
   const city = firstMatch(rawText, /(?:^|\n)\s*City\s*\t+([^\n]+)/im) || findFieldValue(rawText, ["city"]);
-  const state = firstMatch(rawText, /(?:^|\n)\s*State\s*\t+([^\n]+)/im) || findFieldValue(rawText, ["state"]);
+  const state = parseStateValue(rawText) || findFieldValue(rawText, ["state/province", "state"]);
   const postalCode = firstMatch(rawText, /(?:^|\n)\s*ZIP code\s*\t+([^\n]+)/im) || findFieldValue(rawText, ["zip code", "postal code"]);
   const country = findFieldValue(rawText, ["country"]);
   const dateOfBirth = findFieldValue(rawText, ["when were you born?", "date of birth"]);
   const composedAddress = [addressLine1, addressLine2, city, state, postalCode, country].filter(Boolean).join(", ");
 
-  const chooseMajorsBlockMatch = rawText.match(/Choose majors([\s\S]{0,2000})/i);
-  const majorFromChooseMajors = chooseMajorsBlockMatch
-    ? firstMatch(chooseMajorsBlockMatch[1], /\n([A-Za-z][^\n]*,\s*B\.[AS]\.)\s*\n/)
-    : null;
+  const majorFromChooseMajors = parseUcPrimaryMajor(rawText);
 
   const extracted = {
     "personalInfo.fullName": composedFullName || findFieldValue(rawText, ["student name", "name", "first / given name"]),
@@ -361,7 +448,7 @@ export function extractProfileFromText(rawText, sourceDocumentId) {
     "personalInfo.postalCode": postalCode,
     "personalInfo.country": country,
     "personalInfo.dateOfBirth": dateOfBirth,
-    "personalInfo.intendedMajor": majorFromChooseMajors || findFieldValue(rawText, ["intended major", "academic major or interest", "major(s)", "major"]),
+    "personalInfo.intendedMajor": majorFromChooseMajors || findFieldValue(rawText, ["intended major", "academic major or interest", "major(s)"]),
     "personalInfo.ethnicity": inferEthnicity(rawText),
     "academics.gpa": firstMatch(rawText, /(?:gpa|grade point average)\s*:?\s*([0-9]+(?:\.[0-9]+)?)/i),
     "academics.graduationYear": firstMatch(rawText, /(?:graduation year|class of)\s*:?\s*([0-9]{4})/i),

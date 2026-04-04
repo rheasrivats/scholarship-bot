@@ -1,1 +1,345 @@
-[]
+[
+  {
+    "id": "gmis-stem-scholarship-2ff7e3ed",
+    "name": "GMiS STEM Scholarship",
+    "sourceDomain": "greatmindsinstem.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 5000,
+    "deadline": "2026-05-08 11:59 PM PST",
+    "estimatedEffortMinutes": 240,
+    "eligibility": {
+      "minGpa": 2.5,
+      "allowedMajors": [
+        "Mechanical Engineering",
+        "STEM",
+        "Health-related STEM"
+      ],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "Personal statement addressing a topic determined by Great Minds in STEM."
+    ],
+    "formFields": [],
+    "sourceName": "GMiS STEM Scholarship Application Guidelines",
+    "sourceUrl": "https://greatmindsinstem.org/gmis-scholarship-application/gmis-scholarships/gmis-scholarship-guidelines/",
+    "verifiedAt": "2026-03-27"
+  },
+  {
+    "id": "sofi-2-500-scholarship-giveaway-sweepstakes-3503ad9a",
+    "name": "SoFi $2,500 Scholarship Giveaway Sweepstakes",
+    "sourceDomain": "sofi.com",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 2500,
+    "deadline": "2026-12-31",
+    "estimatedEffortMinutes": 8,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "sourceName": "SoFi",
+    "sourceUrl": "https://www.sofi.com/scholarship-giveaway/",
+    "verifiedAt": "2026-03-27"
+  },
+  {
+    "id": "10-000-no-essay-scholarship-f5181866",
+    "name": "$10,000 “No Essay” Scholarship",
+    "sourceDomain": "scholarships360.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 10000,
+    "deadline": "2026-03-31",
+    "estimatedEffortMinutes": 10,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "sourceName": "Scholarships360",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/10000-no-essay-scholarship/",
+    "verifiedAt": "2026-03-27"
+  },
+  {
+    "id": "0e145de2-f319-4452-a7e0-6181621b4572",
+    "name": "Helping Hand Fund",
+    "sourceDomain": "bold.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": false,
+    "awardAmount": 3000,
+    "deadline": "2026-03-29",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [
+        "nursing",
+        "education"
+      ],
+      "allowedEthnicities": [
+        "hispanic",
+        "latino",
+        "latinx",
+        "black",
+        "african american"
+      ]
+    },
+    "essayPrompts": [
+      "Helping Hand Fund | Bold.org Login Join Bold.org For Donors For Applicants Login Join Bold.org Get in touch Donor Inquiries donors@bold.org Award Inquiries awards@bold.org Student Inquiries contact@bold.org Join 300k+ followers across Donors How It Works Bo...",
+      "To apply, please submit an essay describing what success means to you and how this scholarship can help you reach your goals.",
+      "Selection Criteria: Ambition, Drive, Impact Scholarships for High School Seniors Scholarships for Black Students Scholarships for High School Juniors Scholarships for Minorities Scholarships for High School Sophomores Scholarships for College Sophomores Hig..."
+    ],
+    "formFields": [],
+    "sourceName": "Bold",
+    "sourceUrl": "https://bold.org/scholarships/helping-hand-fund/",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "fe06dff5-1058-410c-90fc-e700101f6bcd",
+    "name": "$2,000 No Essay Scholarship",
+    "sourceDomain": "sallie.com",
+    "sourceTier": "Tier 1",
+    "requiresAccount": false,
+    "awardAmount": 10000,
+    "deadline": "2026-03-31",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "$2,000 No Essay Scholarship – Sallie Skip to content Colleges Colleges Scout College Search Find the right college for you.",
+      "$5,000 Grad School No Essay Scholarship Enter to win our $5,000 no essay grad school scholarship in 2 min or less.",
+      "Scholarships Scholarships $2,000 No Essay Scholarship Enter to win our no essay $2,000 college scholarship in 2 minutes or less."
+    ],
+    "formFields": [],
+    "sourceName": "Sallie",
+    "sourceUrl": "https://www.sallie.com/scholarships/no-essay",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "f2f9e087-03d9-415a-a623-8610daf87c5a",
+    "name": "Latinos in Technology Scholarship",
+    "sourceDomain": "svcf.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": false,
+    "awardAmount": 18000,
+    "deadline": "",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [
+        "engineering",
+        "mathematics",
+        "computer science",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "allowedEthnicities": [
+        "hispanic",
+        "latino",
+        "latinx"
+      ]
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "sourceName": "Svcf",
+    "sourceUrl": "https://www.svcf.org/scholarships/latinos-in-technology-scholarship",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "df54fe5e-869e-491d-89bb-80862d98bb30",
+    "name": "“Tuition Solution” Scholarship for STEM Students This scholarship has been verified by the scholarship providing organization.",
+    "sourceDomain": "scholarships360.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 200000,
+    "deadline": "2026-11-08",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [
+        "education",
+        "engineering",
+        "computer science",
+        "mathematics",
+        "physics",
+        "chemistry",
+        "biology"
+      ],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "\"Tuition Solution\" Scholarship for STEM Students - Scholarships360 Get matched with vetted scholarships and enter our $10,000 No-Essay Scholarship Please select whichever best describes you for the 2025 - 2026 academic year.",
+      "Apply Now Find Scholarships Search All Scholarships Exclusive Scholarships Easy Scholarships to Apply For No Essay Scholarships Scholarships for HS Juniors Scholarships for HS Seniors Scholarships for College Students Scholarships for Grad Students Scholars...",
+      "In order to apply, you must write an essay about which area of science, technology, engineering, or math most excites you, and what have you done to explore or pursue that interest."
+    ],
+    "formFields": [],
+    "sourceName": "Scholarships360",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/tuition-solution-scholarship-for-stem-students/",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "3d163b96-3dfb-4db6-88ce-4b936630edfe",
+    "name": "PTDA Foundation Student Scholarship This scholarship has been verified by the scholarship providing organization.",
+    "sourceDomain": "scholarships360.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 200000,
+    "deadline": "2026-06-01",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [
+        "civil engineering",
+        "engineering",
+        "business",
+        "finance",
+        "education",
+        "journalism",
+        "communications"
+      ],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "PTDA Foundation Student Scholarship - Scholarships360 Get matched with vetted scholarships and enter our $10,000 No-Essay Scholarship Please select whichever best describes you for the 2025 - 2026 academic year.",
+      "Apply Now Find Scholarships Search All Scholarships Exclusive Scholarships Easy Scholarships to Apply For No Essay Scholarships Scholarships for HS Juniors Scholarships for HS Seniors Scholarships for College Students Scholarships for Grad Students Scholars...",
+      "Essay Prompt Why do you believe you should be awarded this scholarship?"
+    ],
+    "formFields": [],
+    "sourceName": "Scholarships360",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/ptda-foundation-student-scholarship/",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "a55f5f73-0129-4f88-8f23-440f30006a9c",
+    "name": "“Moving Mountains” Scholarship for Hispanic Students This scholarship has been verified by the scholarship providing organization.",
+    "sourceDomain": "scholarships360.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 200000,
+    "deadline": "2026-10-15",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": [
+        "hispanic",
+        "latino",
+        "latinx"
+      ]
+    },
+    "essayPrompts": [
+      "\"Moving Mountains\" Scholarship for Hispanic Students - Scholarships360 Get matched with vetted scholarships and enter our $10,000 No-Essay Scholarship Please select whichever best describes you for the 2025 - 2026 academic year.",
+      "Apply Now Find Scholarships Search All Scholarships Exclusive Scholarships Easy Scholarships to Apply For No Essay Scholarships Scholarships for HS Juniors Scholarships for HS Seniors Scholarships for College Students Scholarships for Grad Students Scholars...",
+      "Please note that applicants will be reviewed based on both the quality of their essay and quantity of scholarships applied for on the Scholarships360 platform."
+    ],
+    "formFields": [],
+    "sourceName": "Scholarships360",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/moving-mountains-scholarship-for-hispanic-students/",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "2307ed5f-4196-4aa4-b394-63e80d742a91",
+    "name": "Hispanic Scholarship Fund",
+    "sourceDomain": "scholarships360.org",
+    "sourceTier": "Tier 2",
+    "requiresAccount": true,
+    "awardAmount": 200000,
+    "deadline": "",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": [
+        "hispanic",
+        "latino",
+        "latinx"
+      ]
+    },
+    "essayPrompts": [
+      "Hispanic Scholarship Fund - Scholarships360 Get matched with vetted scholarships and enter our $10,000 No-Essay Scholarship Please select whichever best describes you for the 2025 - 2026 academic year.",
+      "Apply Now Find Scholarships Search All Scholarships Exclusive Scholarships Easy Scholarships to Apply For No Essay Scholarships Scholarships for HS Juniors Scholarships for HS Seniors Scholarships for College Students Scholarships for Grad Students Scholars...",
+      "Essay Proof of enrollment Academic transcript Letter of recommendation FAFSA RECENT SCHOLARSHIPS360 WINNERS Joe McGee Winner of the Scholarships360 $10,000 “No Essay” Scholarship --> I am blessed with this financial support from Scholarship360 to pursue my ..."
+    ],
+    "formFields": [],
+    "sourceName": "Scholarships360",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/hispanic-scholarship-fund/",
+    "verifiedAt": "2026-03-30"
+  },
+  {
+    "id": "3dc1efd6-7473-4a4b-b0e6-a35101f9e7d5",
+    "name": "Scholarships360 No-Essay Scholarship",
+    "sourceDomain": "scholarshipjunkies.org",
+    "sourceTier": "Tier 1",
+    "requiresAccount": true,
+    "awardAmount": 10000,
+    "deadline": "2026-06-30",
+    "estimatedEffortMinutes": 60,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "Scholarships360 No-Essay Scholarship Need an extra pair of eyes on your personal statement or scholarship essay?",
+      "About Scholarships Essay Review Donate Home Scholarships Essay Review About Fellowships Educators High Schools Learn More Organizations Learn More Universities Learn More Scholarship Orgs Learn More Resume Get Feedback Learn More Explore Templates NEW Learn...",
+      "Learn more > High School Senior Community College No Essay Undergrad High School More Scholarships Dick's Drive-Ins Employee Scholarship Program View scholarship details 💰 Award Amount $9,000 📆 Deadline Assistance League of Seattle View scholarship detail..."
+    ],
+    "formFields": [],
+    "sourceName": "Scholarshipjunkies",
+    "sourceUrl": "https://www.scholarshipjunkies.org/scholarship-search/scholarships360-no-essay-scholarship",
+    "verifiedAt": "2026-04-01"
+  },
+  {
+    "id": "adc191b8-24c5-4b17-86b7-8508af699893",
+    "name": "$50,000 ScholarshipOwl No Essay Scholarship",
+    "sourceDomain": "scholarshipowl.com",
+    "sourceTier": "Tier 1",
+    "requiresAccount": false,
+    "awardAmount": 50000,
+    "deadline": "",
+    "estimatedEffortMinutes": 30,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "$50,000 ScholarshipOwl No Essay Scholarship .p-button{display:inline-flex;cursor:pointer;user-select:none;align-items:center;justify-content:center;overflow:hidden;position:relative;color:var(--p-button-primary-color);background:var(--p-button-primary-backg..."
+    ],
+    "formFields": [],
+    "sourceName": "Scholarshipowl",
+    "sourceUrl": "https://scholarshipowl.com/awards/scholarshipowl-scholarship",
+    "verifiedAt": "2026-04-01"
+  },
+  {
+    "id": "apex-minecraft-hosting-scholarship-demo",
+    "name": "Apex Minecraft Hosting Scholarship",
+    "sourceDomain": "apexminecrafthosting.com",
+    "sourceTier": "Tier 1",
+    "requiresAccount": false,
+    "awardAmount": 0,
+    "deadline": "",
+    "estimatedEffortMinutes": 30,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "essayPrompts": [
+      "See current essay prompt on scholarship page."
+    ],
+    "formFields": [],
+    "sourceName": "Apex Minecraft Hosting",
+    "sourceUrl": "https://apexminecrafthosting.com/minecraft-scholarship/",
+    "verifiedAt": "2026-04-02",
+    "notes": "Manually added as a demo target scholarship."
+  }
+]

@@ -3,6 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
+const DEFAULT_AUTOFILL_AI_MODEL = "gpt-5.3-codex-spark";
+
+function envFlagEnabled(value, defaultValue = false) {
+  if (value === undefined || value === null || value === "") return defaultValue;
+  return /^(1|true|yes|on)$/i.test(String(value).trim());
+}
+
 function countWords(text) {
   return String(text || "")
     .trim()
@@ -72,36 +79,57 @@ function chooseTargetWords({ minWords, maxWords }) {
 
 function compactProfile(profile = {}) {
   const p = profile || {};
+  const flatEssayCandidates = [
+    p?.["essays.0.content"],
+    p?.personal_statement,
+    p?.essay,
+    p?.essay_response
+  ]
+    .map((value) => String(value || "").trim())
+    .filter((value) => value.length >= 80);
+  const flattenedEssays = flatEssayCandidates.slice(0, 2).map((content) => ({
+    prompt: null,
+    contentPreview: content.slice(0, 1200)
+  }));
+  const structuredEssays = Array.isArray(p.essays)
+    ? p.essays.slice(0, 3).map((essay) => ({
+        prompt: essay.prompt || null,
+        contentPreview: String(essay.content || "").slice(0, 1200)
+      }))
+    : [];
+  const essays = [...structuredEssays, ...flattenedEssays].slice(0, 3);
+
   return {
     personalInfo: {
-      fullName: p.personalInfo?.fullName || null,
-      intendedMajor: p.personalInfo?.intendedMajor || null,
-      ethnicity: p.personalInfo?.ethnicity || null,
-      city: p.personalInfo?.city || null,
-      state: p.personalInfo?.state || null
+      fullName: p.personalInfo?.fullName || p.fullName || p.full_name || null,
+      intendedMajor: p.personalInfo?.intendedMajor || p.intendedMajor || p.intended_major || null,
+      ethnicity: p.personalInfo?.ethnicity || p.ethnicity || null,
+      city: p.personalInfo?.city || p.city || null,
+      state: p.personalInfo?.state || p.state || null
     },
     academics: {
-      schoolName: p.academics?.schoolName || null,
-      gradeLevel: p.academics?.gradeLevel || null,
-      gpa: p.academics?.gpa || null
+      schoolName: p.academics?.schoolName || p.schoolName || p.school_name || p.high_school || null,
+      gradeLevel: p.academics?.gradeLevel || p.gradeLevel || p.grade_level || null,
+      gpa: p.academics?.gpa || p.gpa || null
     },
     activities: Array.isArray(p.activities) ? p.activities.slice(0, 12) : [],
     awards: Array.isArray(p.awards) ? p.awards.slice(0, 12) : [],
-    essays: Array.isArray(p.essays)
-      ? p.essays.slice(0, 3).map((essay) => ({
-          prompt: essay.prompt || null,
-          contentPreview: String(essay.content || "").slice(0, 1200)
-        }))
-      : []
+    essays
   };
 }
 
 function runCodexExec({ prompt, schemaPath, outputPath, cwd, timeoutMs = 120000 }) {
   return new Promise((resolve, reject) => {
-    const cmd = [
-      "codex",
-      "--search",
+    const model = String(process.env.AUTOFILL_AI_MODEL || DEFAULT_AUTOFILL_AI_MODEL).trim();
+    const enableSearch = envFlagEnabled(process.env.AUTOFILL_AI_ENABLE_SEARCH, false);
+    const cmd = ["codex"];
+    if (enableSearch) {
+      cmd.push("--search");
+    }
+    cmd.push(
       "exec",
+      "-m",
+      model,
       "--skip-git-repo-check",
       "-C",
       cwd,
@@ -110,7 +138,7 @@ function runCodexExec({ prompt, schemaPath, outputPath, cwd, timeoutMs = 120000 
       "--output-last-message",
       outputPath,
       "-"
-    ];
+    );
 
     const proc = spawn(cmd[0], cmd.slice(1), { stdio: ["pipe", "pipe", "pipe"] });
     let stderr = "";
@@ -229,4 +257,3 @@ export const __testables = {
   chooseTargetWords,
   countWords
 };
-

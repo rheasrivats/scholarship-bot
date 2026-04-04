@@ -15,7 +15,8 @@ class CodexAgentRuntime(AgentRuntime):
 
     Environment variables:
     - OPENAI_API_KEY (required)
-    - OPENAI_MODEL (optional, default: gpt-5)
+    - OPENAI_MODEL (optional, default: gpt-5.3-codex-spark)
+    - OPENAI_REASONING_EFFORT (optional, default: low)
     - OPENAI_BASE_URL (optional)
     """
 
@@ -26,8 +27,13 @@ class CodexAgentRuntime(AgentRuntime):
         model: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> None:
-        self.model = model or os.getenv("OPENAI_MODEL", "gpt-5")
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-5.3-codex-spark")
+        self.reasoning_effort = (
+            reasoning_effort
+            or os.getenv("OPENAI_REASONING_EFFORT", "low")
+        )
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
         if not self.api_key:
@@ -63,13 +69,17 @@ class CodexAgentRuntime(AgentRuntime):
                 f"Schema: {json.dumps(schema_json, indent=2)}"
             )
 
-        response = await self.client.responses.create(
-            model=self.model,
-            input=[
+        request_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "input": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-        )
+        }
+        if self.reasoning_effort:
+            request_kwargs["reasoning_effort"] = self.reasoning_effort
+
+        response = await self.client.responses.create(**request_kwargs)
 
         text = _extract_response_text(response)
         if output_type is None:

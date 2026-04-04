@@ -1,1 +1,211 @@
-[]
+[
+  {
+    "id": "gmis-stem-scholarship-2ff7e3ed",
+    "name": "GMiS STEM Scholarship",
+    "sourceDomain": "greatmindsinstem.org",
+    "sourceUrl": "https://greatmindsinstem.org/gmis-scholarship-application/gmis-scholarships/gmis-scholarship-guidelines/",
+    "sourceName": "GMiS STEM Scholarship Application Guidelines",
+    "requiresAccount": true,
+    "awardAmount": 5000,
+    "deadline": "2026-05-08 11:59 PM PST",
+    "estimatedEffortMinutes": 240,
+    "eligibility": {
+      "minGpa": 2.5,
+      "allowedMajors": [
+        "Mechanical Engineering",
+        "STEM",
+        "Health-related STEM"
+      ],
+      "allowedEthnicities": []
+    },
+    "inferredRequirements": {
+      "requiredMajors": [
+        "STEM"
+      ],
+      "requiredEthnicities": [],
+      "requiredStates": [],
+      "minAge": null,
+      "maxAge": null,
+      "requirementStatements": [
+        "Must be pursuing a science, technology, engineering, or math degree.",
+        "Must demonstrate leadership or service.",
+        "Must submit transcript, resume, personal statement, one peer recommendation, and one faculty recommendation.",
+        "Must be enrolled in an accredited U.S. 2-year or 4-year program for upcoming fall."
+      ]
+    },
+    "essayPrompts": [
+      "Personal statement addressing a topic determined by Great Minds in STEM."
+    ],
+    "formFields": [],
+    "status": "approved",
+    "reviewNotes": "",
+    "reviewedBy": "",
+    "reviewedAt": "2026-03-27T05:31:04.470Z",
+    "createdAt": "2026-03-27T05:28:38.134Z",
+    "riskScore": 0,
+    "riskFlags": [],
+    "recommendedTier": "Tier 1"
+  },
+  {
+    "id": "10-000-no-essay-scholarship-f5181866",
+    "name": "$10,000 “No Essay” Scholarship",
+    "sourceDomain": "scholarships360.org",
+    "sourceUrl": "https://scholarships360.org/scholarships/search/10000-no-essay-scholarship/",
+    "sourceName": "Scholarships360",
+    "requiresAccount": true,
+    "awardAmount": 10000,
+    "deadline": "2026-03-31",
+    "estimatedEffortMinutes": 10,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "inferredRequirements": {
+      "requiredMajors": [],
+      "requiredEthnicities": [],
+      "requiredStates": [],
+      "minAge": null,
+      "maxAge": null,
+      "requirementStatements": [
+        "Open to U.S. citizens or permanent residents across high school/college/vocational levels.",
+        "Rolling monthly deadlines through June 2026 cycle."
+      ]
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "status": "approved",
+    "reviewNotes": "",
+    "reviewedBy": "",
+    "reviewedAt": "2026-03-27T05:49:40.849Z",
+    "createdAt": "2026-03-27T05:45:08.531Z",
+    "riskScore": 0,
+    "riskFlags": [],
+    "recommendedTier": "Tier 1"
+  },
+  {
+    "id": "sofi-2-500-scholarship-giveaway-sweepstakes-3503ad9a",
+    "name": "SoFi $2,500 Scholarship Giveaway Sweepstakes",
+    "sourceDomain": "sofi.com",
+    "sourceUrl": "https://www.sofi.com/scholarship-giveaway/",
+    "sourceName": "SoFi",
+    "requiresAccount": true,
+    "awardAmount": 2500,
+    "deadline": "2026-12-31",
+    "estimatedEffortMinutes": 8,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": []
+    },
+    "inferredRequirements": {
+      "requiredMajors": [],
+      "requiredEthnicities": [],
+      "requiredStates": [
+        "United States",
+        "District of Columbia"
+      ],
+      "minAge": 18,
+      "maxAge": null,
+      "requirementStatements": [
+        "Must be at least 18.",
+        "Must be enrolled at or accepted to an accredited Title IV nonprofit 4-year college/university or graduate program in the U.S.",
+        "Monthly random-drawing sweepstakes during 2026."
+      ]
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "status": "approved",
+    "reviewNotes": "",
+    "reviewedBy": "",
+    "reviewedAt": "2026-03-27T05:47:29.701Z",
+    "createdAt": "2026-03-27T05:45:08.531Z",
+    "riskScore": 0,
+    "riskFlags": [],
+    "recommendedTier": "Tier 1"
+  },
+  {
+    "id": "lulac-national-scholarship-fund-lnsf-4601eb81",
+    "name": "LULAC National Scholarship Fund (LNSF)",
+    "sourceDomain": "lnesc.org",
+    "sourceUrl": "https://www.lnesc.org/scholarships/lulac/",
+    "sourceName": "LULAC National Scholarship Fund",
+    "requiresAccount": true,
+    "awardAmount": 2000,
+    "deadline": "March 31, 2026",
+    "estimatedEffortMinutes": 90,
+    "eligibility": {
+      "minGpa": null,
+      "allowedMajors": [],
+      "allowedEthnicities": [
+        "hispanic/latino"
+      ]
+    },
+    "inferredRequirements": {
+      "requiredMajors": [],
+      "requiredEthnicities": [
+        "hispanic/latino"
+      ],
+      "requiredStates": [],
+      "minAge": null,
+      "maxAge": null,
+      "requirementStatements": [
+        "Application is currently open and must be submitted by March 31, 2026.",
+        "Must be U.S. citizen, legal permanent resident, or DACA recipient.",
+        "Must have applied to or be enrolled full-time in college (graduate students may be part-time).",
+        "Requires a participating LULAC Council in the applicant's area."
+      ]
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "status": "pending",
+    "reviewNotes": "",
+    "reviewedBy": "",
+    "reviewedAt": "",
+    "createdAt": "2026-03-27T20:33:46.163Z",
+    "riskScore": 0,
+    "riskFlags": [],
+    "recommendedTier": "Tier 1"
+  },
+  {
+    "id": "coca-cola-first-generation-scholarship-hacu-51a800b1",
+    "name": "Coca-Cola First Generation Scholarship (HACU)",
+    "sourceDomain": "hacu.net",
+    "sourceUrl": "https://hacu.net/programs/hacu-scholarship-program/",
+    "sourceName": "HACU Scholarship Program",
+    "requiresAccount": true,
+    "awardAmount": 5000,
+    "deadline": "May 15, 2026 (11:59 PM CST)",
+    "estimatedEffortMinutes": 75,
+    "eligibility": {
+      "minGpa": 3,
+      "allowedMajors": [
+        "All majors"
+      ],
+      "allowedEthnicities": []
+    },
+    "inferredRequirements": {
+      "requiredMajors": [],
+      "requiredEthnicities": [],
+      "requiredStates": [],
+      "minAge": null,
+      "maxAge": null,
+      "requirementStatements": [
+        "Must be a graduating high school senior in 2025-2026 or a continuing college student with at least one completed college year.",
+        "Must have minimum GPA of 3.0.",
+        "Must attend or plan to attend a HACU-member institution.",
+        "Must be a first-generation college student."
+      ]
+    },
+    "essayPrompts": [],
+    "formFields": [],
+    "status": "pending",
+    "reviewNotes": "",
+    "reviewedBy": "",
+    "reviewedAt": "",
+    "createdAt": "2026-03-27T20:33:46.163Z",
+    "riskScore": 0,
+    "riskFlags": [],
+    "recommendedTier": "Tier 1"
+  }
+]

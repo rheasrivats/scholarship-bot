@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient } from "../integrations/supabaseClient.js";
-import { normalizeCandidateRecord } from "./candidateStore.js";
+import { normalizeCandidateRecord, normalizeRiskFlags } from "./candidateStore.js";
 
 const USER_STATUS_BY_CANDIDATE_STATUS = {
   pending: "queued",
@@ -78,13 +78,14 @@ function mapJoinedRowToCandidate(row) {
     },
     essayPrompts: Array.isArray(metadata.essayPrompts) ? metadata.essayPrompts : [],
     formFields: Array.isArray(metadata.formFields) ? metadata.formFields : [],
+    userSuggested: metadata.userSuggested === true,
     status: CANDIDATE_STATUS_BY_USER_STATUS[row.status] || "pending",
     reviewNotes: row.notes || "",
     reviewedBy: "",
     reviewedAt: row.status === "queued" ? "" : String(row.last_action_at || ""),
     createdAt: String(row.date_added || new Date().toISOString()),
     riskScore: Number(metadata.riskScore || 0),
-    riskFlags: Array.isArray(metadata.riskFlags) ? metadata.riskFlags : [],
+    riskFlags: normalizeRiskFlags(metadata.riskFlags),
     recommendedTier: String(metadata.recommendedTier || "Tier 1")
   };
 }
@@ -202,8 +203,9 @@ export async function importCandidatesToSupabase(userId, rawCandidates, existing
         inferredRequirements: normalized.inferredRequirements,
         essayPrompts: normalized.essayPrompts,
         formFields: normalized.formFields,
+        userSuggested: normalized.userSuggested === true,
         riskScore: normalized.riskScore,
-        riskFlags: normalized.riskFlags,
+        riskFlags: normalizeRiskFlags(normalized.riskFlags),
         recommendedTier: normalized.recommendedTier,
         importedAt: new Date().toISOString()
       }
@@ -362,6 +364,121 @@ export async function markCandidateSubmittedInSupabase({
   });
   if (!row) {
     throw new Error(`Candidate not found: ${scholarshipId}`);
+  }
+  return mapJoinedRowToCandidate(row);
+}
+
+export async function refreshCandidateMetadataInSupabase({
+  userId,
+  scholarshipId,
+  name = "",
+  deadline = "",
+  awardAmount = 0
+}) {
+  const client = getSupabaseAdminClient();
+  if (!client) {
+    throw new Error("Supabase is not configured");
+  }
+
+  const trimmedUserId = String(userId || "").trim();
+  const trimmedScholarshipId = String(scholarshipId || "").trim();
+  if (!trimmedUserId) {
+    throw new Error("userId is required");
+  }
+  if (!trimmedScholarshipId) {
+    throw new Error("scholarshipId is required");
+  }
+
+  const { data: existingLink, error: linkError } = await client
+    .from("user_scholarships")
+    .select("user_id, scholarship_id")
+    .eq("user_id", trimmedUserId)
+    .eq("scholarship_id", trimmedScholarshipId)
+    .single();
+  if (linkError || !existingLink) {
+    throw new Error(`Candidate not found: ${trimmedScholarshipId}`);
+  }
+
+  const normalizedAward = Number(awardAmount || 0);
+  const payload = {
+    title: String(name || "").trim() || "Unknown Scholarship",
+    deadline: toSupabaseDeadline(String(deadline || "").trim()),
+    award_amount: Number.isFinite(normalizedAward) && normalizedAward > 0 ? normalizedAward : 0
+  };
+
+  const { error: updateError } = await client
+    .from("scholarships")
+    .update(payload)
+    .eq("id", trimmedScholarshipId);
+  if (updateError) {
+    throw new Error(`Supabase candidate metadata update failed: ${updateError.message}`);
+  }
+
+  const rows = await listJoinedRows(trimmedUserId);
+  const row = rows.find((item) => {
+    const scholarship = Array.isArray(item.scholarships) ? item.scholarships[0] : item.scholarships;
+    return scholarship?.id === trimmedScholarshipId;
+  });
+  if (!row) {
+    throw new Error(`Candidate not found: ${trimmedScholarshipId}`);
+  }
+  return mapJoinedRowToCandidate(row);
+}
+
+export async function markCandidateAsUserSuggestedInSupabase({
+  userId,
+  scholarshipId
+}) {
+  const client = getSupabaseAdminClient();
+  if (!client) {
+    throw new Error("Supabase is not configured");
+  }
+
+  const trimmedUserId = String(userId || "").trim();
+  const trimmedScholarshipId = String(scholarshipId || "").trim();
+  if (!trimmedUserId) {
+    throw new Error("userId is required");
+  }
+  if (!trimmedScholarshipId) {
+    throw new Error("scholarshipId is required");
+  }
+
+  const { data: existingLink, error: linkError } = await client
+    .from("user_scholarships")
+    .select("user_id, scholarship_id")
+    .eq("user_id", trimmedUserId)
+    .eq("scholarship_id", trimmedScholarshipId)
+    .single();
+  if (linkError || !existingLink) {
+    throw new Error(`Candidate not found: ${trimmedScholarshipId}`);
+  }
+
+  const { data: scholarshipRow, error: scholarshipReadError } = await client
+    .from("scholarships")
+    .select("id, metadata")
+    .eq("id", trimmedScholarshipId)
+    .single();
+  if (scholarshipReadError || !scholarshipRow) {
+    throw new Error(`Candidate not found: ${trimmedScholarshipId}`);
+  }
+
+  const metadata = normalizeMetadata(scholarshipRow.metadata);
+  metadata.userSuggested = true;
+  const { error: scholarshipWriteError } = await client
+    .from("scholarships")
+    .update({ metadata })
+    .eq("id", trimmedScholarshipId);
+  if (scholarshipWriteError) {
+    throw new Error(`Supabase userSuggested update failed: ${scholarshipWriteError.message}`);
+  }
+
+  const rows = await listJoinedRows(trimmedUserId);
+  const row = rows.find((item) => {
+    const scholarship = Array.isArray(item.scholarships) ? item.scholarships[0] : item.scholarships;
+    return scholarship?.id === trimmedScholarshipId;
+  });
+  if (!row) {
+    throw new Error(`Candidate not found: ${trimmedScholarshipId}`);
   }
   return mapJoinedRowToCandidate(row);
 }

@@ -3,6 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
+const DEFAULT_AUTOFILL_FIELD_MAPPER_MODEL = "gpt-5.4-mini";
+const DEFAULT_AUTOFILL_FIELD_MAPPER_REASONING_EFFORT = "low";
+
+function envFlagEnabled(value, defaultValue = false) {
+  if (value === undefined || value === null || value === "") return defaultValue;
+  return /^(1|true|yes|on)$/i.test(String(value).trim());
+}
+
 function stripTags(value) {
   return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -65,10 +73,26 @@ function extractApplicationLinks(html, baseUrl) {
 
 function runCodexExec({ prompt, schemaPath, outputPath, cwd, timeoutMs = 180000 }) {
   return new Promise((resolve, reject) => {
-    const cmd = [
-      "codex",
-      "--search",
+    const model = String(
+      process.env.AUTOFILL_FIELD_MAPPER_MODEL
+      || process.env.AUTOFILL_AI_MODEL
+      || DEFAULT_AUTOFILL_FIELD_MAPPER_MODEL
+    ).trim();
+    const reasoningEffort = String(
+      process.env.AUTOFILL_FIELD_MAPPER_REASONING_EFFORT
+      || DEFAULT_AUTOFILL_FIELD_MAPPER_REASONING_EFFORT
+    ).trim();
+    const enableSearch = envFlagEnabled(process.env.AUTOFILL_AI_ENABLE_SEARCH, false);
+    const cmd = ["codex"];
+    if (enableSearch) {
+      cmd.push("--search");
+    }
+    cmd.push(
       "exec",
+      "-m",
+      model,
+      "-c",
+      `model_reasoning_effort="${reasoningEffort}"`,
       "--skip-git-repo-check",
       "-C",
       cwd,
@@ -77,7 +101,7 @@ function runCodexExec({ prompt, schemaPath, outputPath, cwd, timeoutMs = 180000 
       "--output-last-message",
       outputPath,
       "-"
-    ];
+    );
 
     const proc = spawn(cmd[0], cmd.slice(1), {
       stdio: ["pipe", "pipe", "pipe"]

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Archivist | ScholarshipBot</title>
+    <title>Scholarship Autofill Assistant</title>
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
@@ -453,7 +453,7 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand">The Archivist</div>
+        <div class="brand">ScholarFlow</div>
         <nav class="topnav">
           <a class="step-link" data-view-link="upload-documents" href="#upload-documents">Upload Documents</a>
           <a class="step-link" data-view-link="scholarship-matches" href="#scholarship-matches">Scholarship Matches</a>
@@ -464,8 +464,7 @@
 
       <div class="layout">
         <aside class="sidenav">
-          <div class="side-title">ScholarshipBot</div>
-          <div class="side-sub">Curated Excellence</div>
+          <div class="side-title">Scholarship Autofill Assistant</div>
           <nav class="side-links">
             <a class="active" data-view-link="upload-documents" href="#upload-documents"><span class="nav-dot">▣</span>Application Tracker</a>
             <a data-view-link="scholarship-matches" href="#scholarship-matches"><span class="nav-dot">★</span>My Matches</a>
@@ -479,7 +478,6 @@
 
         <main class="content">
       <section class="section" id="upload-documents">
-        <p class="section-kicker">Intellectual Repository</p>
         <h1 class="section-head">Upload Documents</h1>
         <p class="hint">Securely upload transcripts, UC/private applications, and essays for AI profile extraction.</p>
 
@@ -501,7 +499,6 @@
             <button class="secondary" id="authSignUpBtn" type="button">Sign Up</button>
             <button class="secondary" id="authSignInBtn" type="button">Sign In</button>
             <button class="primary" id="authGuestBtn" type="button">Continue as Guest</button>
-            <button class="secondary view-hidden" id="authContinueBtn" type="button">Continue as Signed-In User</button>
           </div>
           <details style="margin-top:10px;">
             <summary>Developer Options</summary>
@@ -580,6 +577,10 @@
             <input id="reviewEthnicity" type="text" />
           </div>
           <div class="field">
+            <label for="reviewGender">Gender</label>
+            <input id="reviewGender" type="text" />
+          </div>
+          <div class="field">
             <label for="reviewGpa">GPA</label>
             <input id="reviewGpa" type="text" placeholder="e.g. 3.72" />
           </div>
@@ -618,6 +619,16 @@
       <div class="panel" id="candidateQueuePanel">
         <h3 style="margin-top:0;">Candidate Queue</h3>
         <div id="queueMeta" class="hint">Loading...</div>
+        <div class="panel" style="margin-top:12px;">
+          <div style="font-weight:700; color:var(--primary);">Suggest Scholarship URL</div>
+          <div class="hint" id="suggestScholarshipHint" style="margin-top:4px;">Sign in to save suggestions to your account queue.</div>
+          <div class="row" style="margin-top:8px;">
+            <input id="suggestScholarshipUrl" type="text" placeholder="https://example.org/scholarship" style="flex:2; min-width:260px;" />
+            <input id="suggestScholarshipName" type="text" placeholder="Optional name" style="flex:1; min-width:180px;" />
+            <button class="secondary" id="suggestScholarshipBtn" type="button">Add Suggestion</button>
+          </div>
+          <div class="hint" id="suggestScholarshipStatus" style="margin-top:8px;"></div>
+        </div>
         <div class="grid" id="queue"></div>
       </div>
 
@@ -685,6 +696,11 @@
       const candidateQueuePanelEl = document.getElementById('candidateQueuePanel');
       const queueEl = document.getElementById('queue');
       const queueMetaEl = document.getElementById('queueMeta');
+      const suggestScholarshipUrlEl = document.getElementById('suggestScholarshipUrl');
+      const suggestScholarshipNameEl = document.getElementById('suggestScholarshipName');
+      const suggestScholarshipBtnEl = document.getElementById('suggestScholarshipBtn');
+      const suggestScholarshipHintEl = document.getElementById('suggestScholarshipHint');
+      const suggestScholarshipStatusEl = document.getElementById('suggestScholarshipStatus');
       const rejectedQueuePanelEl = document.getElementById('rejectedQueuePanel');
       const rejectedQueueEl = document.getElementById('rejectedQueue');
       const rejectedQueueMetaEl = document.getElementById('rejectedQueueMeta');
@@ -713,7 +729,6 @@
       const authSignUpBtnEl = document.getElementById('authSignUpBtn');
       const authSignInBtnEl = document.getElementById('authSignInBtn');
       const authGuestBtnEl = document.getElementById('authGuestBtn');
-      const authContinueBtnEl = document.getElementById('authContinueBtn');
       const authBootstrapBtnEl = document.getElementById('authBootstrapBtn');
       const authSignOutBtnEl = document.getElementById('authSignOutBtn');
       const authStatusEl = document.getElementById('authStatus');
@@ -738,6 +753,8 @@
       let draftFieldRequirements = {};
       let draftSubmissionState = {};
       let draftGuidedSessions = {};
+      let guidedEssayDraftCache = {};
+      let guidedEssayAssistantState = {};
       let activeGuidedDraftKey = null;
       const draftMarkSubmittedHandlers = {};
       const labelOverrideStorageKey = 'scholarship_label_overrides_v1';
@@ -767,6 +784,7 @@
         phone: document.getElementById('reviewPhone'),
         intendedMajor: document.getElementById('reviewMajor'),
         ethnicity: document.getElementById('reviewEthnicity'),
+        gender: document.getElementById('reviewGender'),
         gpa: document.getElementById('reviewGpa')
       };
 
@@ -822,6 +840,12 @@
         adminStatusEl.style.color = isError ? '#a11a2d' : '#274e65';
       }
 
+      function setSuggestScholarshipStatus(text, isError = false) {
+        if (!suggestScholarshipStatusEl) return;
+        suggestScholarshipStatusEl.textContent = String(text || '');
+        suggestScholarshipStatusEl.style.color = isError ? '#a11a2d' : '#4f5e69';
+      }
+
       function setAuthStatus(text, isError = false) {
         authStatusEl.textContent = text;
         authStatusEl.style.color = isError ? '#a11a2d' : '#4f5e69';
@@ -853,12 +877,28 @@
         }
         authSignOutBtnEl.disabled = !isSignedIn;
         sideLogoutBtnEl.disabled = !isSignedIn && !accessUnlocked;
-        authContinueBtnEl.classList.toggle('view-hidden', !isSignedIn);
         if (isSignedIn) {
           const identity = authState.email || authState.userId || 'Signed in user';
-          setAuthStatus(`Signed in as ${identity}. Continue to unlock uploads.`);
+          setAuthStatus(`Signed in as ${identity}. Your saved scholarship queue is ready.`);
+          unlockUploadWorkbench(`signed in (${identity})`);
         } else {
           setAuthStatus('Choose sign in or continue as guest to unlock document upload.');
+          if (!accessUnlocked) {
+            lockUploadWorkbench();
+          }
+        }
+        updateSuggestScholarshipUi();
+      }
+
+      function updateSuggestScholarshipUi() {
+        const isSignedIn = Boolean(authState.userId || authState.accessToken);
+        if (suggestScholarshipBtnEl) {
+          suggestScholarshipBtnEl.disabled = !isSignedIn;
+        }
+        if (suggestScholarshipHintEl) {
+          suggestScholarshipHintEl.textContent = isSignedIn
+            ? 'Paste a scholarship URL to add it to your candidate queue.'
+            : 'Sign in to save suggestions to your account queue.';
         }
       }
 
@@ -1000,6 +1040,7 @@
         reviewInputs.phone.value = profile?.personalInfo?.phone || '';
         reviewInputs.intendedMajor.value = profile?.personalInfo?.intendedMajor || '';
         reviewInputs.ethnicity.value = profile?.personalInfo?.ethnicity || '';
+        reviewInputs.gender.value = profile?.personalInfo?.gender || profile?.personalInfo?.sex || '';
         reviewInputs.gpa.value = profile?.academics?.gpa || '';
       }
 
@@ -1010,6 +1051,8 @@
           'personalInfo.phone': reviewInputs.phone.value,
           'personalInfo.intendedMajor': reviewInputs.intendedMajor.value,
           'personalInfo.ethnicity': reviewInputs.ethnicity.value,
+          'personalInfo.gender': reviewInputs.gender.value,
+          'personalInfo.sex': reviewInputs.gender.value,
           'academics.gpa': reviewInputs.gpa.value
         };
       }
@@ -1020,6 +1063,7 @@
         const a = profile?.academics || {};
         const essays = Array.isArray(profile?.essays) ? profile.essays : [];
         const firstEssay = essays.find((e) => String(e?.content || '').trim())?.content || '';
+        const selectedStage = String(discoveryStudentStageEl?.value || '').trim();
 
         if (p.fullName) payload.full_name = String(p.fullName);
         if (p.email) payload.email = String(p.email);
@@ -1044,13 +1088,23 @@
         }
         if (p.country) payload.country = String(p.country);
         if (p.intendedMajor) payload.intended_major = String(p.intendedMajor);
+        if (p.gender) payload.gender = String(p.gender);
         if (p.ethnicity) payload.ethnicity = String(p.ethnicity);
         if (a.gpa) payload.gpa = String(a.gpa);
+        if (a.gradeLevel) {
+          payload.grade_level = String(a.gradeLevel);
+          payload['academics.gradeLevel'] = String(a.gradeLevel);
+        }
         if (a.schoolName) {
           payload.school_name = String(a.schoolName);
           payload.school = String(a.schoolName);
           payload.high_school = String(a.schoolName);
           payload.current_school = String(a.schoolName);
+        }
+        if (selectedStage) {
+          payload.student_stage = selectedStage;
+          payload.stage = selectedStage;
+          payload.studentStage = selectedStage;
         }
         if (firstEssay) payload.personal_statement = String(firstEssay);
         return payload;
@@ -1100,6 +1154,7 @@
         card.innerHTML = `
           <h3>Extracted Profile</h3>
           <div class="pill">Major: ${escapeHtml(profile?.personalInfo?.intendedMajor || 'missing')}</div>
+          <div class="pill">Gender: ${escapeHtml(profile?.personalInfo?.gender || profile?.personalInfo?.sex || 'missing')}</div>
           <div class="pill">Ethnicity: ${escapeHtml(profile?.personalInfo?.ethnicity || 'missing')}</div>
           <div class="pill">GPA: ${escapeHtml(profile?.academics?.gpa || 'missing')}</div>
           <div class="pill">Human Edits Applied: ${overrideCount}</div>
@@ -1202,15 +1257,16 @@
 
             const raw = String(field.fieldName || '').trim();
             const source = String(field.sourcePath || '').trim();
-            const mappedSemanticLabel = (() => {
-              if (source === 'personalInfo.fullName') return 'Full Name';
-              if (source === 'personalInfo.email') return 'Email';
-              if (source === 'personalInfo.phone') return 'Phone';
-              if (source === 'personalInfo.intendedMajor') return 'Intended Major';
-              if (source === 'personalInfo.ethnicity') return 'Ethnicity/Background';
-              if (source === 'personalInfo.dateOfBirth') return 'Date of Birth';
-              if (source === 'academics.gpa') return 'GPA';
-              if (source.startsWith('essays.')) return 'Essay Response';
+          const mappedSemanticLabel = (() => {
+            if (source === 'personalInfo.fullName') return 'Full Name';
+            if (source === 'personalInfo.email') return 'Email';
+            if (source === 'personalInfo.phone') return 'Phone';
+            if (source === 'personalInfo.intendedMajor') return 'Intended Major';
+            if (source === 'personalInfo.gender' || source === 'personalInfo.sex') return 'Gender';
+            if (source === 'personalInfo.ethnicity') return 'Ethnicity/Background';
+            if (source === 'personalInfo.dateOfBirth') return 'Date of Birth';
+            if (source === 'academics.gpa') return 'GPA';
+            if (source.startsWith('essays.')) return 'Essay Response';
               return '';
             })();
             if (mappedSemanticLabel) {
@@ -1470,7 +1526,7 @@
               <div class="mono" data-role="guided-debug" style="margin-top:8px; white-space:pre-wrap;">No refill debug yet.</div>
             </details>
             <div class="row" style="margin-top:8px;">
-              <button type="button" class="secondary" data-action="guided-refill">Refill This Page</button>
+              <button type="button" class="secondary" data-action="guided-refill">Retry Autofill with AI</button>
               <button type="button" class="secondary" data-action="guided-next">Approve This Page & Next</button>
               <button type="button" class="secondary" data-action="guided-account-ready">Resume After Account Setup</button>
               <button type="button" class="danger" data-action="guided-stop">Stop Session</button>
@@ -1523,6 +1579,7 @@
             const a = profile.academics || {};
             const essays = Array.isArray(profile.essays) ? profile.essays : [];
             const firstEssay = essays.find((e) => String(e?.content || '').trim())?.content || '';
+            const selectedStage = String(discoveryStudentStageEl?.value || '').trim();
 
             if (p.fullName) {
               payload.full_name = String(p.fullName);
@@ -1584,12 +1641,21 @@
               payload.gpa = String(a.gpa);
               payload['academics.gpa'] = String(a.gpa);
             }
+            if (a.gradeLevel) {
+              payload.grade_level = String(a.gradeLevel);
+              payload['academics.gradeLevel'] = String(a.gradeLevel);
+            }
             if (a.schoolName) {
               payload.school_name = String(a.schoolName);
               payload.school = String(a.schoolName);
               payload.high_school = String(a.schoolName);
               payload.current_school = String(a.schoolName);
               payload['academics.schoolName'] = String(a.schoolName);
+            }
+            if (selectedStage) {
+              payload.student_stage = selectedStage;
+              payload.stage = selectedStage;
+              payload.studentStage = selectedStage;
             }
             if (firstEssay) {
               payload.personal_statement = String(firstEssay);
@@ -1655,15 +1721,288 @@
           function isLikelyEssayField(field) {
             const type = String(field?.type || '').toLowerCase();
             const label = String(field?.label || '').toLowerCase();
+            const name = String(field?.name || '').toLowerCase();
+            const id = String(field?.id || '').toLowerCase();
             if (type === 'textarea') return true;
-            return /(essay|statement|short answer|long answer|minimum words?|impact|mission|describe)/.test(label);
+            return /(essay|statement|short answer|long answer|minimum words?|impact|mission|describe)/.test(`${label} ${name} ${id}`);
           }
 
           function buildGuidedEssayTools(state) {
             const fields = Array.isArray(state?.fields) ? state.fields : [];
-            const essayFields = fields.filter((field) => isLikelyEssayField(field));
-            if (essayFields.length === 0) {
-              guidedEssayToolsEl.innerHTML = '<div class="hint">No essay prompts detected on this page yet.</div>';
+            const fromFields = fields.filter((field) => isLikelyEssayField(field));
+            const debugEntries = Array.isArray(state?.fillDiagnostics?.debugEntries)
+              ? state.fillDiagnostics.debugEntries
+              : [];
+            const fromDebug = debugEntries
+              .map((entry) => {
+                const label = String(entry?.fieldLabel || '').trim();
+                const entryKeys = String(entry?.keys || '').trim();
+                if (!label) return null;
+                const reason = String(entry?.reason || '').toLowerCase();
+                const method = String(entry?.method || '').toLowerCase();
+                const looksEssay = /(essay|statement|short answer|long answer|minimum words?|impact|mission|describe|essay\d+)/i
+                  .test(`${label} ${entryKeys}`);
+                if (!looksEssay) return null;
+                return {
+                  label,
+                  name: label,
+                  id: label,
+                  type: 'textarea'
+                };
+              })
+              .filter(Boolean);
+            const detectedEssayFields = [...fromFields, ...fromDebug].filter((field, index, arr) => {
+              const key = `${String(field?.id || '').toLowerCase()}::${String(field?.name || '').toLowerCase()}::${String(field?.label || '').toLowerCase()}`;
+              return index === arr.findIndex((candidate) => (
+                `${String(candidate?.id || '').toLowerCase()}::${String(candidate?.name || '').toLowerCase()}::${String(candidate?.label || '').toLowerCase()}` === key
+              ));
+            });
+            const hasDetectedEssayFields = detectedEssayFields.length > 0;
+            const essayFields = hasDetectedEssayFields
+              ? detectedEssayFields
+              : [{
+                label: 'Manual Essay Prompt',
+                name: '',
+                id: '',
+                type: 'textarea',
+                __manual: true
+              }];
+
+            const buildEssayCacheKey = (field, index) =>
+              `${keyPrefix}::${String(field?.id || field?.name || field?.label || `essay-${index}`)}`;
+            const currentState = guidedEssayAssistantState[keyPrefix] || {
+              mode: 'list',
+              selectedEssayIndex: 0,
+              statusText: '',
+              statusIsError: false
+            };
+            const selectedEssayIndex = Math.min(
+              Math.max(Number(currentState.selectedEssayIndex || 0), 0),
+              Math.max(essayFields.length - 1, 0)
+            );
+            const selectedField = essayFields[selectedEssayIndex];
+            const selectedCacheKey = buildEssayCacheKey(selectedField, selectedEssayIndex);
+            const selectedPrompt = String(selectedField?.label || selectedField?.name || selectedField?.id || `Essay ${selectedEssayIndex + 1}`).trim();
+            const selectedWordTarget = parseWordTargetFromPrompt(selectedPrompt);
+            const selectedTargetHint = selectedWordTarget.target
+              ? `target ${selectedWordTarget.target} words`
+              : 'no explicit word target found';
+            const selectedDraft = String(guidedEssayDraftCache[selectedCacheKey] || '').trim();
+            const selectedManualPrompt = String(currentState.manualPromptText || '').trim();
+
+            const setAssistantState = (nextState = {}) => {
+              guidedEssayAssistantState[keyPrefix] = {
+                ...guidedEssayAssistantState[keyPrefix],
+                ...nextState
+              };
+            };
+
+            if (currentState.mode === 'editor') {
+              guidedEssayToolsEl.innerHTML = `
+                <details open>
+                  <summary>Essay Assistant (${selectedEssayIndex + 1}/${essayFields.length})</summary>
+                  <div class="draft-field" style="margin-top:8px;">
+                    <label>${escapeHtml(selectedPrompt)}</label>
+                    <div class="hint" style="font-size:0.78rem;">
+                      Field ID: ${escapeHtml(selectedField?.id || 'unknown')} | Name: ${escapeHtml(selectedField?.name || 'unknown')} | ${escapeHtml(selectedTargetHint)}
+                    </div>
+                    ${selectedField?.__manual
+                      ? `<textarea data-role="guided-essay-prompt" style="min-height:90px; margin-top:8px;" placeholder="Paste the essay prompt/question here...">${escapeHtml(selectedManualPrompt || '')}</textarea>`
+                      : ''}
+                    <textarea data-role="guided-essay-editor" style="min-height:180px; margin-top:8px;" placeholder="Draft essay response here...">${escapeHtml(selectedDraft)}</textarea>
+                    <div class="row" style="margin-top:8px;">
+                      <button type="button" class="secondary" data-action="guided-essay-draft" style="padding:8px 12px; font-size:0.85rem;">
+                        Draft Essay
+                      </button>
+                      <button type="button" class="secondary" data-action="guided-essay-input" style="padding:8px 12px; font-size:0.85rem;">
+                        Input Essay
+                      </button>
+                      <button type="button" class="secondary" data-action="guided-essay-copy" style="padding:8px 12px; font-size:0.85rem;" ${selectedDraft ? '' : 'disabled'}>
+                        Copy Essay
+                      </button>
+                      <button type="button" class="secondary" data-action="guided-essay-back" style="padding:8px 12px; font-size:0.85rem;">
+                        Continue Autofilling
+                      </button>
+                    </div>
+                    <div class="hint" data-role="guided-essay-status" style="margin-top:8px; color:${currentState.statusIsError ? '#a11a2d' : '#4f5e69'};">
+                      ${escapeHtml(currentState.statusText || 'Draft the response, input it, or continue without filling this essay field.')}
+                    </div>
+                  </div>
+                </details>
+              `;
+
+              const editorEl = guidedEssayToolsEl.querySelector('[data-role="guided-essay-editor"]');
+              const promptEl = guidedEssayToolsEl.querySelector('[data-role="guided-essay-prompt"]');
+              const statusEl = guidedEssayToolsEl.querySelector('[data-role="guided-essay-status"]');
+              const draftBtn = guidedEssayToolsEl.querySelector('[data-action="guided-essay-draft"]');
+              const inputBtn = guidedEssayToolsEl.querySelector('[data-action="guided-essay-input"]');
+              const copyBtn = guidedEssayToolsEl.querySelector('[data-action="guided-essay-copy"]');
+              const backBtn = guidedEssayToolsEl.querySelector('[data-action="guided-essay-back"]');
+
+              const setLocalStatus = (text, isError = false) => {
+                if (statusEl) {
+                  statusEl.textContent = text;
+                  statusEl.style.color = isError ? '#a11a2d' : '#4f5e69';
+                }
+                setAssistantState({
+                  mode: 'editor',
+                  selectedEssayIndex,
+                  statusText: text,
+                  statusIsError: Boolean(isError)
+                });
+              };
+
+              if (draftBtn) {
+                draftBtn.addEventListener('click', async () => {
+                  try {
+                    draftBtn.disabled = true;
+                    draftBtn.textContent = 'Drafting...';
+                    setLocalStatus('Generating draft...');
+                    const promptForDraft = String(promptEl?.value || selectedPrompt || '').trim();
+                    if (!promptForDraft || promptForDraft.length < 10) {
+                      throw new Error('Provide a clearer essay prompt first.');
+                    }
+                    const draftResult = await fetchJson('/admin/essay-draft', {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify({
+                        scholarshipName: draft.scholarshipName,
+                        prompt: promptForDraft,
+                        studentProfile: latestMergedProfile || {},
+                        timeoutMs: 150000
+                      })
+                    }, 170000);
+                    const essayText = String(draftResult.essay || '').trim();
+                    if (!essayText) {
+                      throw new Error('AI draft came back empty');
+                    }
+                    guidedEssayDraftCache[selectedCacheKey] = essayText;
+                    if (editorEl) editorEl.value = essayText;
+                    if (copyBtn) copyBtn.disabled = false;
+                    const wc = Number(draftResult.wordCount || 0);
+                    setLocalStatus(`Draft ready (${wc} words).`);
+                    setAssistantState({
+                      manualPromptText: promptForDraft
+                    });
+                    setStatus(`Drafted essay for ${draft.scholarshipName}.`);
+                  } catch (err) {
+                    setLocalStatus(`Draft failed: ${err.message || String(err)}`, true);
+                    setStatus(err.message || String(err), true);
+                  } finally {
+                    draftBtn.disabled = false;
+                    draftBtn.textContent = 'Draft Essay';
+                  }
+                });
+              }
+
+              if (inputBtn) {
+                inputBtn.addEventListener('click', async () => {
+                  const sessionId = draftGuidedSessions[keyPrefix];
+                  if (!sessionId) {
+                    setStatus('No active guided session for this draft.', true);
+                    setLocalStatus('No active guided session for this draft.', true);
+                    return;
+                  }
+                  const essayText = String(editorEl?.value || '').trim();
+                  if (!essayText) {
+                    setStatus('Essay text is empty. Draft first or paste text before input.', true);
+                    setLocalStatus('Essay text is empty. Draft first or paste text before input.', true);
+                    return;
+                  }
+                  if (selectedField?.__manual) {
+                    setLocalStatus('Manual mode: copy the draft and paste into the essay field in browser.', true);
+                    setStatus('Manual essay mode active. Use Copy Essay and paste into the form.', true);
+                    return;
+                  }
+                  guidedEssayDraftCache[selectedCacheKey] = essayText;
+                  if (copyBtn) copyBtn.disabled = false;
+
+                  const updates = {};
+                  if (selectedField?.name) updates[selectedField.name] = essayText;
+                  if (selectedField?.id) updates[selectedField.id] = essayText;
+                  if (selectedField?.label) updates[selectedField.label] = essayText;
+
+                  try {
+                    inputBtn.disabled = true;
+                    inputBtn.textContent = 'Inputting...';
+                    setLocalStatus('Applying essay to page...');
+                    const refillResult = await fetchJson('/admin/submission/upsert-payload', {
+                      method: 'POST',
+                      headers: { 'content-type': 'application/json' },
+                      body: JSON.stringify({
+                        sessionId,
+                        updates,
+                        refill: true
+                      })
+                    }, 120000);
+
+                    const refillDebug = Array.isArray(refillResult?.fillDiagnostics?.debugEntries)
+                      ? refillResult.fillDiagnostics.debugEntries
+                      : [];
+                    const fieldTokens = [
+                      String(selectedField?.label || '').toLowerCase(),
+                      String(selectedField?.name || '').toLowerCase(),
+                      String(selectedField?.id || '').toLowerCase()
+                    ].filter(Boolean);
+                    const mismatchDetected = refillDebug.some((entry) => {
+                      if (String(entry?.reason || '') !== 'target-mismatch-after-page-change') return false;
+                      const debugLabel = String(entry?.fieldLabel || '').toLowerCase();
+                      return fieldTokens.length === 0 || fieldTokens.some((token) => debugLabel.includes(token) || token.includes(debugLabel));
+                    });
+                    if (mismatchDetected) {
+                      setLocalStatus('Fill failed safely due to page rerender. Use Copy Essay to paste manually, or retry Input Essay.', true);
+                      setStatus('Essay draft is ready but autofill could not safely target this field after rerender.', true);
+                      return;
+                    }
+
+                    setAssistantState({
+                      mode: 'list',
+                      selectedEssayIndex,
+                      statusText: 'Essay applied successfully.',
+                      statusIsError: false
+                    });
+                    renderGuidedState(refillResult);
+                    setStatus(`Essay applied for ${draft.scholarshipName}.`);
+                  } catch (err) {
+                    setLocalStatus(`Input failed: ${err.message || String(err)}. Use Copy Essay as fallback.`, true);
+                    setStatus(err.message || String(err), true);
+                  } finally {
+                    inputBtn.disabled = false;
+                    inputBtn.textContent = 'Input Essay';
+                  }
+                });
+              }
+
+              if (copyBtn) {
+                copyBtn.addEventListener('click', async () => {
+                  const draftText = String(editorEl?.value || guidedEssayDraftCache[selectedCacheKey] || '').trim();
+                  if (!draftText) {
+                    setLocalStatus('No saved draft text available to copy yet.', true);
+                    setStatus('No saved draft text available to copy yet.', true);
+                    return;
+                  }
+                  try {
+                    await navigator.clipboard.writeText(draftText);
+                    setLocalStatus('Essay copied. Paste into the field manually if needed.');
+                    setStatus('Essay draft copied to clipboard.');
+                  } catch (err) {
+                    setLocalStatus(`Clipboard copy failed: ${err.message || String(err)}`, true);
+                    setStatus(`Clipboard copy failed: ${err.message || String(err)}`, true);
+                  }
+                });
+              }
+
+              if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                  setAssistantState({
+                    mode: 'list',
+                    selectedEssayIndex,
+                    statusText: '',
+                    statusIsError: false
+                  });
+                  buildGuidedEssayTools(state);
+                });
+              }
               return;
             }
 
@@ -1671,6 +2010,8 @@
               const prompt = String(field.label || field.name || field.id || `Essay ${index + 1}`).trim();
               const wordTarget = parseWordTargetFromPrompt(prompt);
               const targetHint = wordTarget.target ? `target ${wordTarget.target} words` : 'no explicit word target found';
+              const cacheKey = buildEssayCacheKey(field, index);
+              const hasDraft = Boolean(String(guidedEssayDraftCache[cacheKey] || '').trim());
               return `
                 <div class="draft-field" style="margin-top:8px;">
                   <label>${escapeHtml(prompt)}</label>
@@ -1678,10 +2019,10 @@
                     Field ID: ${escapeHtml(field.id || 'unknown')} | Name: ${escapeHtml(field.name || 'unknown')} | ${escapeHtml(targetHint)}
                   </div>
                   <div class="row" style="margin-top:8px;">
-                    <button type="button" class="secondary" data-action="guided-draft-fill" data-essay-index="${index}" style="padding:8px 12px; font-size:0.85rem;">
-                      Draft + Fill
+                    <button type="button" class="secondary" data-action="guided-open-essay" data-essay-index="${index}" style="padding:8px 12px; font-size:0.85rem;">
+                      ${field?.__manual ? 'Open Manual Essay Assistant' : 'Open Essay Assistant'}
                     </button>
-                    <span class="hint" data-role="guided-draft-status" data-essay-index="${index}"></span>
+                    <span class="hint">${hasDraft ? 'Draft available' : 'No saved draft yet'}</span>
                   </div>
                 </div>
               `;
@@ -1689,75 +2030,22 @@
 
             guidedEssayToolsEl.innerHTML = `
               <details open>
-                <summary>Essay Drafting On Current Page (${essayFields.length})</summary>
+                <summary>Essay Drafting On Current Page (${hasDetectedEssayFields ? detectedEssayFields.length : 0}${hasDetectedEssayFields ? '' : ', manual mode'})</summary>
+                ${hasDetectedEssayFields ? '' : '<div class="hint" style="margin-top:8px;">No essay field could be confidently detected. Use manual essay assistant to draft/copy.</div>'}
                 ${cards}
               </details>
             `;
 
-            guidedEssayToolsEl.querySelectorAll('[data-action="guided-draft-fill"]').forEach((btn) => {
-              btn.addEventListener('click', async (event) => {
-                const sessionId = draftGuidedSessions[keyPrefix];
-                if (!sessionId) {
-                  setStatus('No active guided session for this draft.', true);
-                  return;
-                }
-
+            guidedEssayToolsEl.querySelectorAll('[data-action="guided-open-essay"]').forEach((btn) => {
+              btn.addEventListener('click', (event) => {
                 const idx = Number(event.currentTarget.getAttribute('data-essay-index'));
-                const field = essayFields[idx];
-                const statusNode = guidedEssayToolsEl.querySelector(`[data-role="guided-draft-status"][data-essay-index="${idx}"]`);
-                const prompt = String(field?.label || '').trim();
-                if (!prompt) {
-                  setStatus('Essay prompt missing for this field.', true);
-                  return;
-                }
-
-                try {
-                  event.currentTarget.disabled = true;
-                  event.currentTarget.textContent = 'Drafting...';
-                  if (statusNode) statusNode.textContent = 'Generating draft...';
-
-                  const draftResult = await fetchJson('/admin/essay-draft', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({
-                      scholarshipName: draft.scholarshipName,
-                      prompt,
-                      studentProfile: latestMergedProfile || {},
-                      timeoutMs: 150000
-                    })
-                  }, 170000);
-
-                  const essayText = String(draftResult.essay || '').trim();
-                  if (!essayText) {
-                    throw new Error('AI draft came back empty');
-                  }
-
-                  const updates = {};
-                  if (field.name) updates[field.name] = essayText;
-                  if (field.id) updates[field.id] = essayText;
-                  if (field.label) updates[field.label] = essayText;
-
-                  const refillResult = await fetchJson('/admin/submission/upsert-payload', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({
-                      sessionId,
-                      updates,
-                      refill: true
-                    })
-                  }, 120000);
-
-                  renderGuidedState(refillResult);
-                  const wc = Number(draftResult.wordCount || 0);
-                  if (statusNode) statusNode.textContent = `Filled (${wc} words)`;
-                  setStatus(`Drafted and filled essay on current page for ${draft.scholarshipName}.`);
-                } catch (err) {
-                  if (statusNode) statusNode.textContent = `Failed: ${err.message || String(err)}`;
-                  setStatus(err.message || String(err), true);
-                } finally {
-                  event.currentTarget.disabled = false;
-                  event.currentTarget.textContent = 'Draft + Fill';
-                }
+                setAssistantState({
+                  mode: 'editor',
+                  selectedEssayIndex: Number.isFinite(idx) ? idx : 0,
+                  statusText: '',
+                  statusIsError: false
+                });
+                buildGuidedEssayTools(state);
               });
             });
           }
@@ -1797,7 +2085,7 @@
             guidedNextBtn.disabled = !state.canAdvance;
             guidedAccountReadyBtn.disabled = false;
             guidedStopBtn.disabled = false;
-            submissionLiveScholarshipEl.textContent = `The Archivist is currently filling your application for ${draft.scholarshipName}.`;
+            submissionLiveScholarshipEl.textContent = `Scholarship Autofill Assistant is currently filling your application for ${draft.scholarshipName}.`;
             submissionLiveTaskEl.textContent = state.accountRequired
               ? 'Waiting for account setup'
               : `Step ${state.stepNumber}: ${state.currentUrl || 'Guided submission page'}`;
@@ -1949,7 +2237,8 @@
                   headers: { 'content-type': 'application/json' },
                   body: JSON.stringify({
                     sourceUrl: draft.sourceUrl,
-                    payload: buildPayload()
+                    payload: buildPayload(),
+                    studentProfile: latestMergedProfile || {}
                   })
                 }, 120000);
                 renderGuidedState(result);
@@ -2005,7 +2294,7 @@
             }
             try {
               guidedRefillBtn.disabled = true;
-              guidedRefillBtn.textContent = 'Refilling...';
+              guidedRefillBtn.textContent = 'Retrying AI autofill...';
               const result = await fetchJson('/admin/submission/refill', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -2020,7 +2309,7 @@
             } catch (err) {
               setStatus(err.message || String(err), true);
             } finally {
-              guidedRefillBtn.textContent = 'Refill This Page';
+              guidedRefillBtn.textContent = 'Retry Autofill with AI';
             }
           });
 
@@ -2053,13 +2342,38 @@
 
           guidedStopBtn.addEventListener('click', async () => {
             const sessionId = draftGuidedSessions[keyPrefix];
-            if (!sessionId) return;
+            if (!sessionId) {
+              try {
+                const fallback = await fetchJson('/admin/submission/stop', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({})
+                }, 30000);
+                if (fallback?.closed) {
+                  delete draftGuidedSessions[keyPrefix];
+                  renderGuidedState(null);
+                  setStatus(`Guided session stopped for ${draft.scholarshipName}.`);
+                } else {
+                  setStatus(`No active guided session to stop for ${draft.scholarshipName}.`, true);
+                }
+              } catch {
+                setStatus(`No active guided session to stop for ${draft.scholarshipName}.`, true);
+              }
+              return;
+            }
             try {
-              await fetchJson('/admin/submission/stop', {
+              let result = await fetchJson('/admin/submission/stop', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ sessionId })
               }, 30000);
+              if (!result?.closed) {
+                result = await fetchJson('/admin/submission/stop', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({})
+                }, 30000);
+              }
               delete draftGuidedSessions[keyPrefix];
               renderGuidedState(null);
               setStatus(`Guided session stopped for ${draft.scholarshipName}.`);
@@ -2107,7 +2421,7 @@
         if (readyCandidates.length > 0) {
           enableView('scholarship-matches');
           const approvedSorted = [...readyCandidates].sort((a, b) => {
-            const diff = compareCandidatesByDeadline(a, b);
+            const diff = compareCandidatesByUserSuggestionThenDeadline(a, b);
             if (diff !== 0) return diff;
             return (b.riskScore || 0) - (a.riskScore || 0);
           });
@@ -2134,7 +2448,7 @@
         enableView('scholarship-matches');
 
         const sorted = [...candidates].sort((a, b) => {
-          const diff = compareCandidatesByDeadline(a, b);
+          const diff = compareCandidatesByUserSuggestionThenDeadline(a, b);
           if (diff !== 0) return diff;
           return (b.riskScore || 0) - (a.riskScore || 0);
         });
@@ -2164,6 +2478,15 @@
         return String(left?.name || '').localeCompare(String(right?.name || ''));
       }
 
+      function compareCandidatesByUserSuggestionThenDeadline(left, right) {
+        const leftSuggested = left?.userSuggested === true ? 1 : 0;
+        const rightSuggested = right?.userSuggested === true ? 1 : 0;
+        if (leftSuggested !== rightSuggested) {
+          return rightSuggested - leftSuggested;
+        }
+        return compareCandidatesByDeadline(left, right);
+      }
+
       function renderQueueCandidate(candidate, options = {}) {
         const card = document.createElement('div');
         card.className = 'candidate';
@@ -2171,7 +2494,9 @@
         const canReview = candidate.status === 'pending' || (reviewMode && candidate.status === 'rejected');
         const canContinue = candidate.status === 'approved' || candidate.status === 'submitted';
 
-        const flags = (candidate.riskFlags || []).join(', ') || 'none';
+        const flags = (candidate.riskFlags || [])
+          .filter((flag) => !String(flag || '').startsWith('already_exists_in_vetted:'))
+          .join(', ') || 'none';
         const reqMajors = candidate.inferredRequirements?.requiredMajors || candidate.eligibility?.allowedMajors || [];
         const reqEthnicities = candidate.inferredRequirements?.requiredEthnicities || candidate.eligibility?.allowedEthnicities || [];
         const reqStates = candidate.inferredRequirements?.requiredStates || [];
@@ -2226,6 +2551,7 @@
             ${canReview ? `<button class="primary" data-action="approve">${candidate.status === 'rejected' ? 'Approve Instead' : 'Approve'}</button>` : ''}
             ${canReview ? `<button class="danger" data-action="reject">${candidate.status === 'rejected' ? 'Keep Rejected' : 'Reject'}</button>` : ''}
             ${canContinue ? '<button class="secondary" data-action="go-review">Continue to Review & Prepare</button>' : ''}
+            ${candidate.sourceUrl ? '<button class="secondary" data-action="refresh-metadata">Refresh Metadata</button>' : ''}
           </div>
         `;
 
@@ -2286,6 +2612,39 @@
             showView('review-prepare');
           });
         }
+        const refreshMetadataBtn = card.querySelector('[data-action="refresh-metadata"]');
+        if (refreshMetadataBtn) {
+          refreshMetadataBtn.addEventListener('click', async () => {
+            try {
+              refreshMetadataBtn.disabled = true;
+              refreshMetadataBtn.textContent = 'Refreshing...';
+              setAdminStatus(`Refreshing metadata for ${candidate.id}...`);
+              const response = await fetchJson('/admin/candidates/refresh-metadata', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ id: candidate.id })
+              });
+              if (response?.candidate?.id) {
+                currentCandidateQueue = currentCandidateQueue.map((item) => (
+                  String(item.id || '') === String(response.candidate.id || '')
+                    ? response.candidate
+                    : item
+                ));
+                renderCandidateQueue(
+                  currentCandidateQueue,
+                  response.candidatesFile || currentCandidateQueueSourceFile
+                );
+              }
+              setAdminStatus(response?.message || 'Metadata refresh completed.');
+              loadCandidateQueue().catch((err) => setAdminStatus(err.message || String(err), true));
+            } catch (err) {
+              setAdminStatus(err.message || String(err), true);
+            } finally {
+              refreshMetadataBtn.disabled = false;
+              refreshMetadataBtn.textContent = 'Refresh Metadata';
+            }
+          });
+        }
 
         return card;
       }
@@ -2294,6 +2653,68 @@
         const data = await fetchJson('/admin/candidates');
         renderCandidateQueue(data.candidates || [], data.sourceFile || '');
         loadLatestDiscoveryDiagnostics().catch(() => {});
+        return data;
+      }
+
+      async function suggestScholarshipFromUrl() {
+        const sourceUrl = String(suggestScholarshipUrlEl?.value || '').trim();
+        const name = String(suggestScholarshipNameEl?.value || '').trim();
+        if (!sourceUrl) {
+          setAdminStatus('Enter a scholarship URL to suggest.', true);
+          setSuggestScholarshipStatus('Enter a scholarship URL to suggest.', true);
+          return;
+        }
+
+        if (!authState.userId && !authState.accessToken) {
+          setAdminStatus('Sign in first to save scholarship suggestions.', true);
+          setSuggestScholarshipStatus('Sign in first to save scholarship suggestions.', true);
+          return;
+        }
+
+        try {
+          suggestScholarshipBtnEl.disabled = true;
+          suggestScholarshipBtnEl.textContent = 'Adding...';
+          setAdminStatus('Saving scholarship suggestion...');
+          setSuggestScholarshipStatus('Saving scholarship suggestion...');
+          const result = await fetchJson('/candidates/suggest', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              sourceUrl,
+              name
+            })
+          });
+          setAdminStatus(result.message || 'Suggestion saved.');
+          setSuggestScholarshipStatus(result.message || 'Suggestion saved.');
+          suggestScholarshipUrlEl.value = '';
+          suggestScholarshipNameEl.value = '';
+          const importedIds = Array.isArray(result.imported)
+            ? result.imported.map((item) => String(item?.id || '')).filter(Boolean)
+            : [];
+          let latestQueue = await loadCandidateQueue();
+          if (result.status === 'imported' && importedIds.length > 0) {
+            let seen = (latestQueue?.candidates || []).some((candidate) => importedIds.includes(String(candidate?.id || '')));
+            let attempts = 0;
+            while (!seen && attempts < 5) {
+              attempts += 1;
+              await new Promise((resolve) => window.setTimeout(resolve, 450));
+              latestQueue = await loadCandidateQueue();
+              seen = (latestQueue?.candidates || []).some((candidate) => importedIds.includes(String(candidate?.id || '')));
+            }
+            if (!seen) {
+              setSuggestScholarshipStatus(
+                'Saved, but queue refresh may be delayed. Click "Refresh Queue" in a few seconds.',
+                false
+              );
+            }
+          }
+        } catch (err) {
+          setAdminStatus(err.message || String(err), true);
+          setSuggestScholarshipStatus(err.message || String(err), true);
+        } finally {
+          suggestScholarshipBtnEl.textContent = 'Add Suggestion';
+          updateSuggestScholarshipUi();
+        }
       }
 
       function parseDiscoveryStdoutTail(stdoutTail = '') {
@@ -2477,6 +2898,7 @@
             .map((d) => d.trim())
             .filter(Boolean);
           const manualRerun = options?.manualRerun === true;
+          const freshStart = options?.freshStart === true;
           agentUploadedDocsPayload = documents;
 
           const startedAt = Date.now();
@@ -2510,6 +2932,7 @@
               discoveryQueryBudget,
               discoveryDomains,
               manualRerun,
+              freshStart,
               codexTimeoutSec
             })
           }, 12 * 60 * 1000);
@@ -2663,7 +3086,7 @@
         };
 
         await runWithPayload(payload, 'Running scholarship matching...');
-        await runAgentDiscovery(docs);
+        await runAgentDiscovery(docs, { freshStart: true });
       }
 
       async function uploadDocumentsForLater() {
@@ -2862,11 +3285,6 @@
         unlockUploadWorkbench('guest (local fallback)');
         await refreshQueueAfterAuth();
       });
-      authContinueBtnEl.addEventListener('click', async () => {
-        const identity = authState.email || authState.userId || 'signed-in user';
-        unlockUploadWorkbench(`signed in (${identity})`);
-        await refreshQueueAfterAuth();
-      });
       authSignUpBtnEl.addEventListener('click', handleAuthSignup);
       authSignInBtnEl.addEventListener('click', handleAuthSignin);
       authBootstrapBtnEl.addEventListener('click', handleAuthBootstrap);
@@ -2888,6 +3306,21 @@
       });
       rerunDiscoveryBtnEl.addEventListener('click', () => runAgentDiscovery(null, { manualRerun: true }));
       refreshQueueBtnEl.addEventListener('click', () => loadCandidateQueue().catch((e) => setAdminStatus(e.message || String(e), true)));
+      suggestScholarshipBtnEl.addEventListener('click', () => {
+        suggestScholarshipFromUrl().catch((e) => setAdminStatus(e.message || String(e), true));
+      });
+      suggestScholarshipUrlEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          suggestScholarshipFromUrl().catch((e) => setAdminStatus(e.message || String(e), true));
+        }
+      });
+      suggestScholarshipNameEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          suggestScholarshipFromUrl().catch((e) => setAdminStatus(e.message || String(e), true));
+        }
+      });
       reviewOpenSourceBtnEl.addEventListener('click', () => {
         if (!currentReviewScholarship?.sourceUrl) return;
         window.open(currentReviewScholarship.sourceUrl, '_blank', 'noopener,noreferrer');
@@ -2912,11 +3345,12 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               sourceUrl: currentReviewScholarship.sourceUrl,
-              payload: buildBasePayloadFromProfile(latestMergedProfile || {})
+              payload: buildBasePayloadFromProfile(latestMergedProfile || {}),
+              studentProfile: latestMergedProfile || {}
             })
           }, 120000);
 
-          submissionLiveScholarshipEl.textContent = `The Archivist is currently filling your application for ${currentReviewScholarship.name}.`;
+          submissionLiveScholarshipEl.textContent = `Scholarship Autofill Assistant is currently filling your application for ${currentReviewScholarship.name}.`;
           submissionLiveTaskEl.textContent = result.accountRequired
             ? 'Waiting for account setup'
             : `Step ${result.stepNumber || 1}: ${result.currentUrl || 'Guided submission page'}`;
@@ -2950,6 +3384,8 @@
         draftFieldRequirements = {};
         draftSubmissionState = {};
         draftGuidedSessions = {};
+        guidedEssayDraftCache = {};
+        guidedEssayAssistantState = {};
         activeGuidedDraftKey = null;
         Object.keys(draftMarkSubmittedHandlers).forEach((key) => delete draftMarkSubmittedHandlers[key]);
         reviewPanel.style.display = 'none';

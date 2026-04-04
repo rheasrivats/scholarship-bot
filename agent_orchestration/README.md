@@ -67,7 +67,9 @@ For `codex` runtime, set:
 ```bash
 export OPENAI_API_KEY=...
 # optional:
-# export OPENAI_MODEL=gpt-5
+# export OPENAI_MODEL=gpt-5.3-codex-spark
+# optional: override default reasoning effort (defaults to low)
+# export OPENAI_REASONING_EFFORT=low
 # export OPENAI_BASE_URL=...
 ```
 

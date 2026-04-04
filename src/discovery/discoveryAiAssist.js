@@ -316,3 +316,122 @@ export async function classifyDiscoveryPagesWithAi({
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
+
+export async function expandDiscoverySearchWithAi({
+  profile,
+  studentStage = "",
+  attemptedQueries = [],
+  topSearchResults = [],
+  existingCandidates = [],
+  timeoutMs = 45000
+} = {}) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "discovery-ai-search-expand-"));
+  try {
+    const schemaPath = path.join(tempDir, "schema.json");
+    const outputPath = path.join(tempDir, "output.json");
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        queries: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              query: { type: "string" },
+              rationale: { type: "string" }
+            },
+            required: ["query", "rationale"]
+          }
+        },
+        urls: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              url: { type: "string" },
+              title: { type: "string" },
+              kind: {
+                type: "string",
+                enum: ["direct_scholarship", "scholarship_program_hub", "scholarship_list_page"]
+              },
+              rationale: { type: "string" }
+            },
+            required: ["url", "title", "kind", "rationale"]
+          }
+        },
+        notes: {
+          type: "array",
+          items: { type: "string" }
+        }
+      },
+      required: ["queries", "urls", "notes"]
+    };
+    await fs.writeFile(schemaPath, `${JSON.stringify(schema, null, 2)}\n`, "utf8");
+
+    const compactResults = (Array.isArray(topSearchResults) ? topSearchResults : []).slice(0, 15).map((item) => ({
+      title: String(item?.title || ""),
+      url: String(item?.url || ""),
+      snippet: compactText(item?.snippet || "", 600),
+      fitScore: Number(item?.fitScore || 0),
+      surfaceType: String(item?.surfaceType || "")
+    }));
+
+    const compactExisting = (Array.isArray(existingCandidates) ? existingCandidates : []).slice(0, 12).map((item) => ({
+      name: String(item?.name || item?.title || ""),
+      sourceDomain: String(item?.sourceDomain || item?.source_domain || ""),
+      sourceUrl: String(item?.sourceUrl || item?.source_url || ""),
+      status: String(item?.status || "pending")
+    }));
+
+    const prompt = [
+      "You are helping a scholarship discovery system recover from weak search results.",
+      "Return JSON only matching the schema.",
+      "",
+      "Goal:",
+      "- Suggest better follow-up scholarship search queries.",
+      "- Suggest promising scholarship organization/program/detail URLs to crawl next.",
+      "",
+      "Rules:",
+      "- Prioritize scholarships and scholarship programs that fit the student profile well.",
+      "- If highly specific niche scholarships seem exhausted, broaden to broad-fit and generic-but-eligible opportunities.",
+      "- Broad-fit includes major+stage, ethnicity+stage, STEM+freshman, and state+undergraduate scholarships.",
+      "- Generic opportunities can include no-essay scholarships, easy-apply scholarships, and scholarships open to all majors if they appear eligible.",
+      "- Prefer organizations/programs like HSF/SHPE when they are relevant, even if they are program hubs rather than one perfectly isolated scholarship page.",
+      "- Avoid generic blog posts, advice articles, and low-value roundup pages unless a roundup is likely to lead to strong direct scholarships.",
+      "- Avoid URLs already present in existing reviewed candidates when possible.",
+      "- Keep suggestions concise and high precision.",
+      "",
+      `Student stage: ${studentStage || "unknown"}`,
+      `Student profile:\n${JSON.stringify(profile || {}, null, 2)}`,
+      `Attempted queries:\n${JSON.stringify(attemptedQueries || [], null, 2)}`,
+      `Top ranked search results so far:\n${JSON.stringify(compactResults, null, 2)}`,
+      `Existing reviewed/saved candidates:\n${JSON.stringify(compactExisting, null, 2)}`
+    ].join("\n");
+
+    await runCodexExec({
+      prompt,
+      schemaPath,
+      outputPath,
+      cwd: process.cwd(),
+      timeoutMs
+    });
+
+    const raw = await fs.readFile(outputPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return {
+      queries: Array.isArray(parsed?.queries) ? parsed.queries : [],
+      urls: Array.isArray(parsed?.urls) ? parsed.urls : [],
+      notes: Array.isArray(parsed?.notes) ? parsed.notes : [],
+      metadata: {
+        mode: "ai_search_expansion",
+        queriesReturned: Array.isArray(parsed?.queries) ? parsed.queries.length : 0,
+        urlsReturned: Array.isArray(parsed?.urls) ? parsed.urls.length : 0
+      }
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+}
