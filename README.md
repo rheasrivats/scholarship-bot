@@ -2,6 +2,10 @@
 
 This repository includes a runnable AI-agent scholarship copilot implementation.
 
+## Product Demo
+
+- Loom walkthrough: https://www.loom.com/share/b3842d181bcc460fadccf6c62fa916fa
+
 ## What is implemented
 
 - Multi-document session processing (`PDF`, `DOCX`, `TXT`)
@@ -147,22 +151,16 @@ Example request:
 
 ## Scholarship Data Ingestion
 
-- Editable vetted data source: `data/scholarships.vetted.json`
-- CSV template for imports: `data/scholarships.vetted.template.csv`
-- Current file contains initial sample records; replace with your vetted real sources.
-- Candidate review queue file: `data/scholarships.candidates.json`
+- Canonical source is per-user candidate state:
+  - Supabase-backed when configured (recommended)
+  - local fallback `data/scholarships.candidates.json` when Supabase is not configured
+- `/admin/scholarships/replace` is deprecated and returns `410`.
 
-Import CSV into vetted JSON:
-
-```bash
-npm run scholarships:import -- --in data/scholarships.vetted.template.csv
-```
-
-Hybrid ingestion/review flow:
+Current ingestion/review flow:
 1. Import potential scholarships as candidates (`POST /admin/candidates/import`)
 2. Review candidate risk score/flags (`GET /admin/candidates`)
 3. Approve/reject each candidate (`POST /admin/candidates/review`)
-4. Approved candidates are promoted into `data/scholarships.vetted.json`
+4. Queue/approval state is stored per user (Supabase) or in local candidate cache fallback
 
 ## Multi-Agent Orchestration (Experimental)
 
@@ -194,5 +192,8 @@ Agent discovery run logs:
 
 Deterministic discovery notes:
 - `POST /admin/agent-discovery` now uses a deterministic pipeline: profile-aware query generation, search-result URL collection, parallel page fetches, and rule-based extraction before import.
-- Default search source is DuckDuckGo HTML (`DISCOVERY_SEARCH_ENDPOINT`), with optional narrow AI ambiguity resolution gated by `DISCOVERY_ENABLE_AI_ASSIST=1`.
+- Search endpoint is configurable via `DISCOVERY_SEARCH_ENDPOINT`.
+  - Code fallback (if unset): Brave Web Search endpoint
+  - `.env.example` currently sets DuckDuckGo HTML for local/dev defaults
+- Optional narrow AI ambiguity resolution is gated by `DISCOVERY_ENABLE_AI_ASSIST=1`.
 - Discovery diagnostics returned by the API include generated queries, fetched-page counts, and extraction errors in the log tails.
