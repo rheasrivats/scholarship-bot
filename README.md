@@ -1,4 +1,4 @@
-# Scholarship Bot (M0/M1 Scaffold)
+# Scholarship Autofill Assistant (M0/M1 Scaffold)
 
 This repository includes a runnable AI-agent scholarship copilot implementation.
 
