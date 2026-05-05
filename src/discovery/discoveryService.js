@@ -273,6 +273,8 @@ function buildDiscoveryQueryFamilies({ profile, studentStage = "", discoveryDoma
   const ethnicity = normalizeSearchPhrase(personal.ethnicity);
   const state = normalizeStateValue(personal.state);
   const gradeLevel = cleanText(academics.gradeLevel);
+  const normalizedStage = normalizeText(studentStage);
+  const isStartingCollege = normalizedStage === "starting_college" || normalizeText(gradeLevel).includes("12");
   const stageTerms = getStageSearchTerms(studentStage, gradeLevel);
   const majorTerms = uniqueStrings([
     major,
@@ -317,38 +319,71 @@ function buildDiscoveryQueryFamilies({ profile, studentStage = "", discoveryDoma
   if (ethnicityTerms[0] && stageTerms[2]) pushSpecific(`${ethnicityTerms[0]} scholarship ${stageTerms[2]}`);
 
   // Broad-fit family: relevant but less niche-constrained.
-  if (majorTerms[0]) pushBroad(`${majorTerms[0]} undergraduate scholarship`);
-  if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} undergraduate scholarship ${state}`);
-  if (majorTerms[0] && stageTerms[0]) pushBroad(`${majorTerms[0]} scholarships ${stageTerms[0]}`);
-  if (majorTerms[0] && stageTerms[0]) pushBroad(`${stageTerms[0]} ${majorTerms[0]} scholarship`);
-  if (ethnicityTerms[0] && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${stageTerms[0]}`);
-  if (state && stageTerms[0]) pushBroad(`${state} ${stageTerms[0]} scholarship`);
-  if (majorTerms[0] && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[1]}`);
-  if (majorTerms[0] && state && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${state} ${stageTerms[1]}`);
-  if (ethnicityTerms[0] && majorTerms[0] && stageTerms[1]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[1]}`);
-  if (ethnicityTerms[0] && state && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${state} ${stageTerms[0]}`);
-  if (majorTerms[0] && stageTerms[2]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
-  if (state && stageTerms[2]) pushBroad(`${state} ${stageTerms[2]} scholarship`);
-  if (majorTerms[0]) pushBroad(`${majorTerms[0]} scholarship undergraduate freshman`);
-  if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} scholarship ${state} first-year student`);
-  if (majorTerms[0]) pushBroad(`${majorTerms[0]} STEM scholarship`);
-  if (ethnicityTerms[0] && majorTerms[0]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship`);
-  if (ethnicityTerms[0] && state) pushBroad(`${ethnicityTerms[0]} STEM scholarship ${state}`);
-  if (state && stageTerms[1]) pushBroad(`${state} ${stageTerms[1]} scholarship`);
+  if (isStartingCollege) {
+    if (majorTerms[0] && stageTerms[0]) pushBroad(`${majorTerms[0]} scholarships ${stageTerms[0]}`);
+    if (majorTerms[0] && stageTerms[0]) pushBroad(`${stageTerms[0]} ${majorTerms[0]} scholarship`);
+    if (ethnicityTerms[0] && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${stageTerms[0]}`);
+    if (state && stageTerms[0]) pushBroad(`${state} ${stageTerms[0]} scholarship`);
+    if (majorTerms[0] && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[1]}`);
+    if (majorTerms[0] && state && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${state} ${stageTerms[1]}`);
+    if (ethnicityTerms[0] && majorTerms[0] && stageTerms[1]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[1]}`);
+    if (ethnicityTerms[0] && state && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${state} ${stageTerms[0]}`);
+    if (majorTerms[0] && stageTerms[2]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
+    if (state && stageTerms[2]) pushBroad(`${state} ${stageTerms[2]} scholarship`);
+    if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} scholarship ${state} first-year student`);
+    if (majorTerms[0]) pushBroad(`${majorTerms[0]} STEM scholarship ${stageTerms[0]}`);
+    if (ethnicityTerms[0] && majorTerms[0]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship`);
+    if (ethnicityTerms[0] && state) pushBroad(`${ethnicityTerms[0]} STEM scholarship ${state} ${stageTerms[0]}`);
+    if (state && stageTerms[1]) pushBroad(`${state} ${stageTerms[1]} scholarship`);
+    if (stageTerms[0]) pushBroad(`STEM scholarship ${stageTerms[0]}`);
+    if (state) pushBroad(`college freshman scholarship ${state}`);
+  } else {
+    if (majorTerms[0]) pushBroad(`${majorTerms[0]} undergraduate scholarship`);
+    if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} undergraduate scholarship ${state}`);
+    if (majorTerms[0] && stageTerms[0]) pushBroad(`${majorTerms[0]} scholarships ${stageTerms[0]}`);
+    if (majorTerms[0] && stageTerms[0]) pushBroad(`${stageTerms[0]} ${majorTerms[0]} scholarship`);
+    if (ethnicityTerms[0] && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${stageTerms[0]}`);
+    if (state && stageTerms[0]) pushBroad(`${state} ${stageTerms[0]} scholarship`);
+    if (majorTerms[0] && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[1]}`);
+    if (majorTerms[0] && state && stageTerms[1]) pushBroad(`${majorTerms[0]} scholarship ${state} ${stageTerms[1]}`);
+    if (ethnicityTerms[0] && majorTerms[0] && stageTerms[1]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${stageTerms[1]}`);
+    if (ethnicityTerms[0] && state && stageTerms[0]) pushBroad(`${ethnicityTerms[0]} scholarship ${state} ${stageTerms[0]}`);
+    if (majorTerms[0] && stageTerms[2]) pushBroad(`${majorTerms[0]} scholarship ${stageTerms[2]}`);
+    if (state && stageTerms[2]) pushBroad(`${state} ${stageTerms[2]} scholarship`);
+    if (majorTerms[0]) pushBroad(`${majorTerms[0]} scholarship undergraduate freshman`);
+    if (majorTerms[0] && state) pushBroad(`${majorTerms[0]} scholarship ${state} first-year student`);
+    if (majorTerms[0]) pushBroad(`${majorTerms[0]} STEM scholarship`);
+    if (ethnicityTerms[0] && majorTerms[0]) pushBroad(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship`);
+    if (ethnicityTerms[0] && state) pushBroad(`${ethnicityTerms[0]} STEM scholarship ${state}`);
+    if (state && stageTerms[1]) pushBroad(`${state} ${stageTerms[1]} scholarship`);
+  }
 
   // Generic widening family: intentionally broad, low-restriction opportunities.
-  if (stageTerms[0]) pushGeneric(`${stageTerms[0]} scholarship`);
-  if (state && stageTerms[0]) pushGeneric(`${state} ${stageTerms[0]} no essay scholarship`);
-  if (state) pushGeneric(`${state} no essay scholarship`);
-  pushGeneric("no essay scholarship undergraduate");
-  pushGeneric("no essay scholarship incoming freshman");
-  pushGeneric("scholarship open to all majors undergraduate");
-  pushGeneric("easy apply scholarship undergraduate");
-  pushGeneric("general undergraduate scholarship");
-  pushGeneric("college freshman no essay scholarship");
-  pushGeneric("STEM scholarship open to all majors");
-  pushGeneric("scholarship open to all students");
-  pushGeneric("college scholarship application");
+  if (isStartingCollege) {
+    if (stageTerms[0]) pushGeneric(`${stageTerms[0]} scholarship`);
+    if (state && stageTerms[0]) pushGeneric(`${state} ${stageTerms[0]} no essay scholarship`);
+    if (state) pushGeneric(`${state} college freshman scholarship`);
+    pushGeneric("no essay scholarship incoming freshman");
+    pushGeneric("scholarship open to all majors incoming freshman");
+    pushGeneric("easy apply scholarship incoming freshman");
+    pushGeneric("college freshman no essay scholarship");
+    pushGeneric("STEM scholarship incoming freshman");
+    pushGeneric("high school senior scholarship");
+    pushGeneric("college freshman scholarship");
+  } else {
+    if (stageTerms[0]) pushGeneric(`${stageTerms[0]} scholarship`);
+    if (state && stageTerms[0]) pushGeneric(`${state} ${stageTerms[0]} no essay scholarship`);
+    if (state) pushGeneric(`${state} no essay scholarship`);
+    pushGeneric("no essay scholarship undergraduate");
+    pushGeneric("no essay scholarship incoming freshman");
+    pushGeneric("scholarship open to all majors undergraduate");
+    pushGeneric("easy apply scholarship undergraduate");
+    pushGeneric("general undergraduate scholarship");
+    pushGeneric("college freshman no essay scholarship");
+    pushGeneric("STEM scholarship open to all majors");
+    pushGeneric("scholarship open to all students");
+    pushGeneric("college scholarship application");
+  }
 
   const allBaseQueries = [
     ...specificFitFamily.values,
@@ -375,9 +410,113 @@ function buildDiscoveryQueryFamilies({ profile, studentStage = "", discoveryDoma
   };
 }
 
-function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, discoveryDomains = [], manualRerun = false, freshStart = false }) {
+function buildDirectLinkPriorityQueries({ profile, studentStage = "" }, strategy = "control") {
+  const normalizedStrategy = normalizeText(strategy) || "control";
+  if (normalizedStrategy === "control") return [];
+
+  const personal = profile?.personalInfo || {};
+  const academics = profile?.academics || {};
+  const major = normalizeSearchPhrase(personal.intendedMajor);
+  const ethnicity = normalizeSearchPhrase(personal.ethnicity);
+  const state = normalizeStateValue(personal.state);
+  const gradeLevel = cleanText(academics.gradeLevel);
+  const stageTerms = getStageSearchTerms(studentStage, gradeLevel);
+  const primaryStage = stageTerms[0] || "incoming college freshman";
+  const majorTerms = uniqueStrings([
+    major,
+    major ? major.replace(/\b(major|degree)\b/gi, "").trim() : ""
+  ]);
+  const ethnicityTerms = uniqueStrings([
+    ethnicity,
+    ethnicity.split(/\s+/)
+  ].flat());
+
+  const queries = [];
+  const push = (value) => {
+    const cleaned = cleanText(value);
+    if (!cleaned) return;
+    if (queries.some((item) => item.toLowerCase() === cleaned.toLowerCase())) return;
+    queries.push(cleaned);
+  };
+  const stateText = state === "CA" ? "California" : state;
+
+  if (normalizedStrategy === "direct_action_mix" || normalizedStrategy === "direct_action_precision") {
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship apply ${primaryStage}`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship deadline ${primaryStage}`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship eligibility ${primaryStage}`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship award ${primaryStage}`);
+    if (majorTerms[0] && state) push(`${state} ${majorTerms[0]} scholarship apply ${primaryStage}`);
+    if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship apply ${primaryStage}`);
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} STEM scholarship deadline ${primaryStage}`);
+    push(`${primaryStage} scholarship apply`);
+  }
+
+  if (normalizedStrategy === "singular_detail_mix") {
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship ${primaryStage}`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship deadline incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship eligibility incoming freshman`);
+    if (majorTerms[0] && state) push(`${state} ${majorTerms[0]} scholarship incoming freshman`);
+    if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship incoming freshman`);
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} scholarship incoming freshman`);
+    push("incoming freshman scholarship apply");
+  }
+
+  if (normalizedStrategy === "control_plus_singular") {
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship ${primaryStage}`);
+    if (majorTerms[0] && state) push(`${majorTerms[0]} scholarship ${state} ${primaryStage}`);
+    if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship ${primaryStage}`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship first-year student`);
+    if (majorTerms[0] && primaryStage) push(`${primaryStage} ${majorTerms[0]} scholarship`);
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} scholarship ${primaryStage}`);
+    push(`${primaryStage} scholarship`);
+    if (majorTerms[0]) push(`${majorTerms[0]} award incoming freshman`);
+    if (stateText) push(`${stateText} engineering scholarship incoming freshman`);
+  }
+
+  if (normalizedStrategy === "singular_synonym_mix") {
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} award incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} grant incoming freshman`);
+    if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship incoming freshman`);
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} engineering award incoming freshman`);
+    if (stateText) push(`${stateText} engineering scholarship incoming freshman`);
+    if (majorTerms[0]) push(`incoming freshman scholarship ${majorTerms[0]}`);
+    if (majorTerms[0]) push(`first-year student ${majorTerms[0]} scholarship`);
+    push("incoming freshman STEM scholarship");
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} scholarship incoming freshman`);
+  }
+
+  if (normalizedStrategy === "detail_phrase_mix") {
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship deadline incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship eligibility incoming freshman`);
+    if (majorTerms[0]) push(`${majorTerms[0]} scholarship award incoming freshman`);
+    if (ethnicityTerms[0] && majorTerms[0]) push(`${ethnicityTerms[0]} ${majorTerms[0]} scholarship incoming freshman`);
+    if (ethnicityTerms[0]) push(`${ethnicityTerms[0]} scholarship deadline incoming freshman`);
+    if (stateText) push(`${stateText} engineering scholarship incoming freshman`);
+    push("incoming freshman scholarship apply");
+    push("first-year student scholarship engineering");
+    push("incoming freshman STEM scholarship");
+  }
+
+  return queries;
+}
+
+function buildDiscoveryQueries({
+  profile,
+  studentStage = "",
+  maxQueries = 6,
+  discoveryDomains = [],
+  manualRerun = false,
+  freshStart = false,
+  strategy = "control"
+}) {
   const queryFamilies = buildDiscoveryQueryFamilies({ profile, studentStage, discoveryDomains });
   const budget = allocateDiscoveryQueryBudget(maxQueries, { manualRerun, freshStart });
+  const directPriorityQueries = buildDirectLinkPriorityQueries({ profile, studentStage }, strategy);
+  const normalizedStrategy = normalizeText(strategy) || "control";
   const queries = [];
   const push = (value) => {
     const cleaned = cleanText(value);
@@ -389,9 +528,12 @@ function buildDiscoveryQueries({ profile, studentStage = "", maxQueries = 6, dis
     }
     queries.push(cleaned);
   };
+  directPriorityQueries.forEach(push);
   queryFamilies.specificFit.slice(0, budget.specificFit).forEach(push);
   queryFamilies.broadFit.slice(0, budget.broadFit).forEach(push);
-  queryFamilies.genericWidening.slice(0, budget.genericWidening).forEach(push);
+  if (normalizedStrategy !== "singular_detail_mix") {
+    queryFamilies.genericWidening.slice(0, budget.genericWidening).forEach(push);
+  }
 
   return queries.slice(0, Math.max(1, maxQueries));
 }

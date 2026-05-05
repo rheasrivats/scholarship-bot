@@ -286,11 +286,58 @@ test("buildDiscoveryQueries expands to a broader manual rerun query set", () => 
   });
 
   assert.equal(queries.length >= 10, true);
-  assert.ok(queries.some((query) => /undergraduate scholarship/i.test(query)));
   assert.ok(queries.some((query) => /incoming freshman|first-year student|college freshman/i.test(query)));
   assert.ok(queries.some((query) => /incoming freshman/i.test(query)));
   assert.ok(queries.some((query) => /first-year student/i.test(query) || /first year student/i.test(query)));
   assert.ok(queries.some((query) => /no essay scholarship/i.test(query) || /open to all majors/i.test(query)));
+  assert.ok(!queries.some((query) => /undergraduate scholarship/i.test(query)));
+});
+
+test("buildDiscoveryQueries direct_action_mix prioritizes action-oriented direct-link queries", () => {
+  const queries = buildDiscoveryQueries({
+    profile: {
+      personalInfo: {
+        intendedMajor: "Mechanical Engineering, B.S.",
+        ethnicity: "Hispanic/Latino",
+        state: "California"
+      },
+      academics: {
+        gradeLevel: "12th grade"
+      }
+    },
+    studentStage: "starting_college",
+    maxQueries: 8,
+    strategy: "direct_action_mix"
+  });
+
+  assert.equal(queries.length, 8);
+  assert.ok(/apply|deadline|eligibility/i.test(queries[0]));
+  assert.ok(queries.some((query) => /mechanical engineering scholarship apply incoming college freshman/i.test(query)));
+  assert.ok(queries.some((query) => /hispanic|latino/i.test(query)));
+});
+
+test("buildDiscoveryQueries detail_phrase_mix includes mixed detail-seeking freshman queries", () => {
+  const queries = buildDiscoveryQueries({
+    profile: {
+      personalInfo: {
+        intendedMajor: "Mechanical Engineering, B.S.",
+        ethnicity: "Hispanic/Latino",
+        state: "California"
+      },
+      academics: {
+        gradeLevel: "12th grade"
+      }
+    },
+    studentStage: "starting_college",
+    maxQueries: 10,
+    strategy: "detail_phrase_mix"
+  });
+
+  assert.equal(queries.length, 10);
+  assert.ok(queries.some((query) => /mechanical engineering scholarship deadline incoming freshman/i.test(query)));
+  assert.ok(queries.some((query) => /mechanical engineering scholarship eligibility incoming freshman/i.test(query)));
+  assert.ok(queries.some((query) => /incoming freshman scholarship apply/i.test(query)));
+  assert.ok(queries.some((query) => /incoming freshman stem scholarship/i.test(query)));
 });
 
 test("allocateDiscoveryQueryBudget reserves space for specific, broad, and generic passes", () => {
@@ -320,9 +367,11 @@ test("buildDiscoveryQueryFamilies includes broad-fit and generic widening querie
   });
 
   assert.ok(families.specificFit.some((query) => /mechanical engineering scholarship incoming college freshman/i.test(query)));
-  assert.ok(families.broadFit.some((query) => /stem scholarship/i.test(query) || /undergraduate scholarship/i.test(query)));
+  assert.ok(families.broadFit.some((query) => /stem scholarship incoming college freshman/i.test(query) || /college freshman scholarship/i.test(query)));
   assert.ok(families.genericWidening.some((query) => /no essay scholarship/i.test(query)));
   assert.ok(families.genericWidening.some((query) => /open to all majors/i.test(query) || /easy apply scholarship/i.test(query)));
+  assert.ok(!families.broadFit.some((query) => /undergraduate scholarship/i.test(query)));
+  assert.ok(!families.genericWidening.some((query) => /general undergraduate scholarship/i.test(query)));
 });
 
 test("parseBraveWebSearchResults extracts ranked links", () => {

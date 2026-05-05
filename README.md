@@ -111,12 +111,17 @@ Endpoints:
 - `POST /run-no-account-mvp`
 - `POST /run-no-account-mvp-upload` (used by the browser UI)
 - `GET /admin/scholarships`
-- `POST /admin/scholarships/replace`
 - `GET /admin/candidates`
 - `POST /candidates/suggest` (signed-in users can add a scholarship URL to their queue)
 - `POST /admin/candidates/import`
 - `POST /admin/candidates/review`
 - `POST /admin/agent-discovery` (AI-agent discovery and import)
+- `POST /admin/search-manager/debug/web-search` (debug the standalone `scholarship_web_search` tool outside the UI)
+- `POST /admin/search-manager/debug/select-fetch-batch` (debug the standalone `select_fetch_batch` tool outside the UI; supports `mode: "agentic"` with deterministic fallback or `mode: "deterministic"`)
+- `POST /admin/search-manager/debug/page-bundles` (debug the standalone `batch_fetch_page_bundles` tool outside the UI)
+- `POST /admin/search-manager/debug/triage-frontier` (debug the standalone `triage_frontier` tool outside the UI; supports `mode: "agentic"` with deterministic fallback or `mode: "deterministic"`)
+- `POST /admin/search-manager/debug/decide-hub-expansion` (debug the standalone `decide_hub_expansion` tool outside the UI; supports `mode: "agentic"` with deterministic fallback or `mode: "deterministic"`)
+- `POST /admin/search-manager/debug/assess-search-progress` (debug the standalone `assess_search_progress` tool outside the UI; supports `mode: "agentic"` with deterministic fallback or `mode: "deterministic"`)
 - `POST /admin/scholarships/generate-form-mapping` (Playwright first, agent fallback)
 - `POST /admin/essay-draft`
 - `POST /admin/submission/start`
@@ -154,7 +159,6 @@ Example request:
 - Canonical source is per-user candidate state:
   - Supabase-backed when configured (recommended)
   - local fallback `data/scholarships.candidates.json` when Supabase is not configured
-- `/admin/scholarships/replace` is deprecated and returns `410`.
 
 Current ingestion/review flow:
 1. Import potential scholarships as candidates (`POST /admin/candidates/import`)

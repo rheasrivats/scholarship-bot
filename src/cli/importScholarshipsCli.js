@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
 import path from "node:path";
-import { normalizeScholarshipRecord } from "../data/scholarshipStore.js";
+import { normalizeCandidateRecord } from "../data/candidateStore.js";
 
 function splitCsvLine(line) {
   const out = [];
@@ -73,7 +73,7 @@ function parseCsv(csvText) {
 }
 
 function parseArgs(argv) {
-  const args = { inFile: null, outFile: path.resolve(process.cwd(), "data/scholarships.vetted.json") };
+  const args = { inFile: null, outFile: path.resolve(process.cwd(), "data/scholarships.candidates.json") };
 
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -96,14 +96,59 @@ function parseArgs(argv) {
   return args;
 }
 
+function normalizeTier(value) {
+  const tier = String(value || "").trim();
+  return tier === "Tier 1" || tier === "Tier 2" || tier === "Tier 3" ? tier : "";
+}
+
+function normalizeReviewedAt(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return new Date().toISOString();
+  }
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) {
+    return new Date().toISOString();
+  }
+  return new Date(parsed).toISOString();
+}
+
+function toImportedCandidate(row) {
+  const normalized = normalizeCandidateRecord({
+    id: row.id,
+    name: row.name,
+    sourceDomain: row.sourceDomain,
+    sourceUrl: row.sourceUrl,
+    sourceName: row.sourceName,
+    requiresAccount: row.requiresAccount,
+    awardAmount: row.awardAmount,
+    deadline: row.deadline,
+    estimatedEffortMinutes: row.estimatedEffortMinutes,
+    eligibility: row.eligibility,
+    essayPrompts: row.essayPrompts,
+    formFields: row.formFields
+  });
+  const importedTier = normalizeTier(row.sourceTier);
+  const reviewedAt = normalizeReviewedAt(row.verifiedAt);
+
+  return {
+    ...normalized,
+    status: "approved",
+    reviewedBy: "csv-import",
+    reviewedAt,
+    reviewNotes: String(row.notes || "").trim(),
+    recommendedTier: importedTier || normalized.recommendedTier
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const csv = await fs.readFile(args.inFile, "utf8");
   const parsed = parseCsv(csv);
-  const normalized = parsed.map(normalizeScholarshipRecord);
+  const normalized = parsed.map(toImportedCandidate);
 
   await fs.writeFile(args.outFile, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
-  process.stdout.write(`Imported ${normalized.length} scholarships to ${args.outFile}\n`);
+  process.stdout.write(`Imported ${normalized.length} scholarship candidates to ${args.outFile}\n`);
 }
 
 main().catch((error) => {

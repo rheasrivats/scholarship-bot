@@ -15,9 +15,6 @@ const SUSPICIOUS_DOMAIN_KEYWORDS = [
 ];
 
 const HIGH_RISK_TLDS = [".xyz", ".click", ".top", ".buzz", ".work"];
-const DEPRECATED_RISK_FLAG_PREFIXES = [
-  "already_exists_in_vetted:"
-];
 
 function normalizeList(value) {
   if (Array.isArray(value)) {
@@ -47,8 +44,7 @@ export function normalizeRiskFlags(value) {
   const source = Array.isArray(value) ? value : [];
   const normalized = source
     .map((item) => String(item || "").trim())
-    .filter(Boolean)
-    .filter((flag) => !DEPRECATED_RISK_FLAG_PREFIXES.some((prefix) => flag.startsWith(prefix)));
+    .filter(Boolean);
   return Array.from(new Set(normalized));
 }
 

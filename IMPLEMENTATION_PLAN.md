@@ -90,8 +90,8 @@ Build a student-focused scholarship copilot that:
 - Force manual entry in UI for blocked fields with explicit label: "Manual entry required for sensitive information."
 - Do not include blocked values in LLM prompts, logs, analytics, or exports.
 
-## Trusted Source Vetting SOP (MVP)
-- Goal: only allow autofill on vetted scholarship sources.
+## Trusted Source Review SOP (MVP)
+- Goal: only allow autofill on approved scholarship sources.
 - Seed candidate sources from:
   - Official college financial aid pages
   - Federal/state aid portals
@@ -188,7 +188,7 @@ Build a student-focused scholarship copilot that:
 - [x] Add parser/matching/autofill integration tests.
 - [ ] Run pilot dry-runs and log failure cases.
 - [x] Add tests proving sensitive fields are never autofilled or logged.
-- [ ] Add tests proving non-vetted or Tier 2/3 sources cannot be autofilled.
+- [ ] Add tests proving non-approved or Tier 2/3 sources cannot be autofilled.
 - [ ] Add tests for account handoff transitions (`pre_auth -> handoff_required -> resumed -> review_required`).
 
 ## Risks & Mitigations
@@ -209,7 +209,7 @@ Build a student-focused scholarship copilot that:
 - 2026-03-23: Support multiple uploads per session and merge into one canonical profile.
 - 2026-03-23: Default privacy mode is session-only storage unless user opts into persistence.
 - 2026-03-23: Sensitive identifiers/payment fields are manual-entry only and excluded from autofill/LLM/logging.
-- 2026-03-23: Autofill permitted only for vetted Tier 1 scholarship sources.
+- 2026-03-23: Autofill permitted only for approved Tier 1 scholarship sources.
 - 2026-03-23: For account-required scholarships, bot pauses at account boundary and resumes only after user-authenticated handoff.
 - 2026-03-23: Scholarship ranking priority is award amount first, profile fit second, essay-resource similarity third.
 - 2026-03-23: Current milestone includes both `PDF` and `DOCX` upload support.

@@ -38,6 +38,17 @@ import {
   getSupabaseStatus
 } from "../integrations/supabaseClient.js";
 import { discoverScholarshipCandidates } from "../discovery/discoveryService.js";
+import { scholarshipWebSearch } from "../discovery/scholarshipWebSearch.js";
+import { batchFetchPageBundles } from "../discovery/batchFetchPageBundles.js";
+import { selectFetchBatch } from "../discovery/selectFetchBatch.js";
+import { selectFetchBatchWithFallback } from "../discovery/selectFetchBatchAgent.js";
+import { triageFrontier } from "../discovery/triageFrontier.js";
+import { triageFrontierWithFallback } from "../discovery/triageFrontierAgent.js";
+import { decideHubExpansion } from "../discovery/decideHubExpansion.js";
+import { decideHubExpansionWithFallback } from "../discovery/decideHubExpansionAgent.js";
+import { assessSearchProgress } from "../discovery/assessSearchProgress.js";
+import { assessSearchProgressWithFallback } from "../discovery/assessSearchProgressAgent.js";
+import { extractCandidateLeadsFromHubs } from "../discovery/extractCandidateLeadsFromHubs.js";
 import { processSessionDocuments } from "../pipeline/processSessionDocuments.js";
 
 loadLocalEnv();
@@ -1005,7 +1016,7 @@ const server = http.createServer(async (req, res) => {
           status: imported.length ? "imported" : "already_in_queue",
           message: imported.length
             ? "Suggestion saved to your candidate queue."
-            : "Suggestion already exists in your queue or vetted list.",
+            : "Suggestion already exists in your queue or catalog.",
           imported,
           sourceFile: `supabase:user_scholarships (user_id=${supabaseRoute.userId})`
         });
@@ -1019,7 +1030,7 @@ const server = http.createServer(async (req, res) => {
         status: imported.length ? "imported" : "already_in_queue",
         message: imported.length
           ? "Suggestion saved to the local fallback queue."
-          : "Suggestion already exists in the queue or vetted list.",
+          : "Suggestion already exists in the queue or catalog.",
         imported,
         sourceFile: getCandidatesDataFilePath()
       });
@@ -1104,13 +1115,6 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, { error: error.message });
     }
 
-    return;
-  }
-
-  if (req.method === "POST" && req.url === "/admin/scholarships/replace") {
-    sendJson(res, 410, {
-      error: "Deprecated: scholarship catalog is derived from per-user candidate state, not data/scholarships.vetted.json."
-    });
     return;
   }
 
@@ -1714,6 +1718,387 @@ const server = http.createServer(async (req, res) => {
         error: error.message || String(error)
       });
       sendJson(res, 400, { error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/web-search") {
+    try {
+      const body = await parseBody(req);
+      const queries = Array.isArray(body.queries)
+        ? body.queries.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+      if (queries.length === 0) {
+        sendJson(res, 400, { error: "queries must be a non-empty array" });
+        return;
+      }
+
+      let mergedProfile = body.profile && typeof body.profile === "object" ? body.profile : null;
+      let profileSource = mergedProfile ? "profile" : "none";
+
+      if (!mergedProfile) {
+        const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+        const sessionId = `search-manager-debug-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const profileResult = await processSessionDocuments({
+          sessionId,
+          documents: normalizedDocuments,
+          enableAiEnrichment: false
+        });
+        mergedProfile = profileResult.mergedProfile || {};
+        profileSource = "documents";
+      }
+
+      const maxResultsPerQuery = typeof body.maxResultsPerQuery === "number" ? body.maxResultsPerQuery : 8;
+      const studentStage = String(body.studentStage || "");
+      const domainAllowHints = Array.isArray(body.domainAllowHints) ? body.domainAllowHints.filter(Boolean) : [];
+      const domainDenyHints = Array.isArray(body.domainDenyHints) ? body.domainDenyHints.filter(Boolean) : [];
+      const queryFamily = String(body.queryFamily || "");
+      const experimentVariant = String(body.experimentVariant || "control");
+      const runContext = body.runContext && typeof body.runContext === "object" ? body.runContext : {};
+      const search = await scholarshipWebSearch({
+        queries,
+        profile: mergedProfile,
+        studentStage,
+        maxResultsPerQuery,
+        domainAllowHints,
+        domainDenyHints,
+        queryFamily,
+        experimentVariant,
+        runContext,
+        timeoutMs: typeof body.searchTimeoutMs === "number" ? body.searchTimeoutMs : 10000
+      });
+
+      sendJson(res, 200, {
+        message: "scholarship_web_search completed",
+        profileSource,
+        mergedProfile,
+        queryBatch: {
+          queries,
+          studentStage,
+          maxResultsPerQuery,
+          domainAllowHints,
+          domainDenyHints,
+          queryFamily,
+          experimentVariant,
+          runContext
+        },
+        search
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/page-bundles") {
+    try {
+      const body = await parseBody(req);
+      const urls = Array.isArray(body.urls)
+        ? body.urls.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+      if (urls.length === 0) {
+        sendJson(res, 400, { error: "urls must be a non-empty array" });
+        return;
+      }
+
+      let mergedProfile = body.profile && typeof body.profile === "object" ? body.profile : null;
+      let profileSource = mergedProfile ? "profile" : "none";
+
+      if (!mergedProfile) {
+        const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+        const sessionId = `page-bundles-debug-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const profileResult = await processSessionDocuments({
+          sessionId,
+          documents: normalizedDocuments,
+          enableAiEnrichment: false
+        });
+        mergedProfile = profileResult.mergedProfile || {};
+        profileSource = "documents";
+      }
+
+      const studentStage = String(body.studentStage || "");
+      const runContext = body.runContext && typeof body.runContext === "object" ? body.runContext : {};
+      const pageBundles = await batchFetchPageBundles({
+        urls,
+        profile: mergedProfile,
+        studentStage,
+        maxTextCharsPerPage: typeof body.maxTextCharsPerPage === "number" ? body.maxTextCharsPerPage : 4000,
+        maxSnippetChars: typeof body.maxSnippetChars === "number" ? body.maxSnippetChars : 400,
+        maxChildLinksPerPage: typeof body.maxChildLinksPerPage === "number" ? body.maxChildLinksPerPage : 15,
+        timeoutMs: typeof body.fetchTimeoutMs === "number" ? body.fetchTimeoutMs : 12000,
+        runContext
+      });
+
+      sendJson(res, 200, {
+        message: "batch_fetch_page_bundles completed",
+        profileSource,
+        mergedProfile,
+        request: {
+          urls,
+          studentStage,
+          maxTextCharsPerPage: typeof body.maxTextCharsPerPage === "number" ? body.maxTextCharsPerPage : 4000,
+          maxSnippetChars: typeof body.maxSnippetChars === "number" ? body.maxSnippetChars : 400,
+          maxChildLinksPerPage: typeof body.maxChildLinksPerPage === "number" ? body.maxChildLinksPerPage : 15,
+          runContext
+        },
+        pageBundles
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/triage-frontier") {
+    try {
+      const body = await parseBody(req);
+      const pageBundles = Array.isArray(body.pageBundles) ? body.pageBundles : [];
+      if (pageBundles.length === 0) {
+        sendJson(res, 400, { error: "pageBundles must be a non-empty array" });
+        return;
+      }
+
+      const remainingBudget = body.remainingBudget && typeof body.remainingBudget === "object"
+        ? body.remainingBudget
+        : {};
+      const mode = String(body.mode || "agentic").trim().toLowerCase();
+      const triage = mode === "deterministic"
+        ? {
+            ...triageFrontier({
+              pageBundles,
+              remainingBudget
+            }),
+            metadata: {
+              mode: "deterministic"
+            }
+          }
+        : await triageFrontierWithFallback({
+            pageBundles,
+            remainingBudget,
+            timeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
+          });
+
+      sendJson(res, 200, {
+        message: "triage_frontier completed",
+        request: {
+          pageBundleCount: pageBundles.length,
+          remainingBudget,
+          modeRequested: mode
+        },
+        triage
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/select-fetch-batch") {
+    try {
+      const body = await parseBody(req);
+      const searchResults = Array.isArray(body.searchResults) ? body.searchResults : [];
+      if (searchResults.length === 0) {
+        sendJson(res, 400, { error: "searchResults must be a non-empty array" });
+        return;
+      }
+
+      let mergedProfile = body.profile && typeof body.profile === "object" ? body.profile : null;
+      let profileSource = mergedProfile ? "profile" : "none";
+
+      if (!mergedProfile && Array.isArray(body.documents) && body.documents.length > 0) {
+        const normalizedDocuments = normalizeUploadedDocuments(body.documents || []);
+        const sessionId = `select-fetch-batch-debug-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const profileResult = await processSessionDocuments({
+          sessionId,
+          documents: normalizedDocuments,
+          enableAiEnrichment: false
+        });
+        mergedProfile = profileResult.mergedProfile || {};
+        profileSource = "documents";
+      }
+
+      const alreadyFetchedUrls = Array.isArray(body.alreadyFetchedUrls)
+        ? body.alreadyFetchedUrls.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+      const remainingBudget = body.remainingBudget && typeof body.remainingBudget === "object" ? body.remainingBudget : {};
+      const runState = body.runState && typeof body.runState === "object" ? body.runState : {};
+      const mode = String(body.mode || "agentic").trim().toLowerCase();
+      const selection = mode === "deterministic"
+        ? {
+            ...selectFetchBatch({
+              searchResults,
+              profile: mergedProfile || {},
+              alreadyFetchedUrls,
+              remainingBudget,
+              runState
+            }),
+            metadata: {
+              mode: "deterministic"
+            }
+          }
+        : await selectFetchBatchWithFallback({
+            searchResults,
+            profile: mergedProfile || {},
+            alreadyFetchedUrls,
+            remainingBudget,
+            runState,
+            timeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
+          });
+
+      sendJson(res, 200, {
+        message: "select_fetch_batch completed",
+        profileSource,
+        mergedProfile: mergedProfile || {},
+        request: {
+          searchResultsCount: searchResults.length,
+          alreadyFetchedUrls,
+          remainingBudget,
+          runState,
+          modeRequested: mode
+        },
+        selection
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/decide-hub-expansion") {
+    try {
+      const body = await parseBody(req);
+      const hubPageBundle = body.hubPageBundle && typeof body.hubPageBundle === "object"
+        ? body.hubPageBundle
+        : null;
+      if (!hubPageBundle) {
+        sendJson(res, 400, { error: "hubPageBundle must be an object" });
+        return;
+      }
+
+      const remainingBudget = body.remainingBudget && typeof body.remainingBudget === "object"
+        ? body.remainingBudget
+        : {};
+      const maxChildrenToSelect = typeof body.maxChildrenToSelect === "number" ? body.maxChildrenToSelect : 4;
+      const mode = String(body.mode || "agentic").trim().toLowerCase();
+      const expansionDecision = mode === "deterministic"
+        ? {
+            ...decideHubExpansion({
+              hubPageBundle,
+              remainingBudget,
+              maxChildrenToSelect
+            }),
+            metadata: {
+              mode: "deterministic"
+            }
+          }
+        : await decideHubExpansionWithFallback({
+            hubPageBundle,
+            remainingBudget,
+            maxChildrenToSelect,
+            timeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
+          });
+
+      sendJson(res, 200, {
+        message: "decide_hub_expansion completed",
+        request: {
+          hubUrl: String(hubPageBundle.canonicalUrl || hubPageBundle.requestedUrl || hubPageBundle.url || ""),
+          remainingBudget,
+          maxChildrenToSelect,
+          modeRequested: mode
+        },
+        expansionDecision
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/extract-candidate-leads-from-hubs") {
+    try {
+      const body = await parseBody(req);
+      const pageBundles = Array.isArray(body.pageBundles) ? body.pageBundles : [];
+      if (pageBundles.length === 0) {
+        sendJson(res, 400, { error: "pageBundles must be a non-empty array" });
+        return;
+      }
+
+      const remainingBudget = body.remainingBudget && typeof body.remainingBudget === "object"
+        ? body.remainingBudget
+        : {};
+      const mergedProfile = body.profile && typeof body.profile === "object" ? body.profile : {};
+      const studentStage = String(body.studentStage || "");
+      const maxLeadsPerPage = typeof body.maxLeadsPerPage === "number" ? body.maxLeadsPerPage : 5;
+      const maxTotalLeads = typeof body.maxTotalLeads === "number" ? body.maxTotalLeads : 15;
+
+      const leadExtraction = extractCandidateLeadsFromHubs({
+        pageBundles,
+        profile: mergedProfile,
+        studentStage,
+        remainingBudget,
+        maxLeadsPerPage,
+        maxTotalLeads
+      });
+
+      sendJson(res, 200, {
+        message: "extract_candidate_leads_from_hubs completed",
+        request: {
+          pageBundleCount: pageBundles.length,
+          studentStage,
+          remainingBudget,
+          maxLeadsPerPage,
+          maxTotalLeads
+        },
+        leadExtraction
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/admin/search-manager/debug/assess-search-progress") {
+    try {
+      const body = await parseBody(req);
+      const runSummary = body.runSummary && typeof body.runSummary === "object" ? body.runSummary : {};
+      const currentRound = body.currentRound && typeof body.currentRound === "object" ? body.currentRound : {};
+      const frontierState = body.frontierState && typeof body.frontierState === "object" ? body.frontierState : {};
+      const remainingBudget = body.remainingBudget && typeof body.remainingBudget === "object" ? body.remainingBudget : {};
+      const mode = String(body.mode || "agentic").trim().toLowerCase();
+
+      const progressDecision = mode === "deterministic"
+        ? {
+            ...assessSearchProgress({
+              runSummary,
+              currentRound,
+              frontierState,
+              remainingBudget
+            }),
+            metadata: {
+              mode: "deterministic"
+            }
+          }
+        : await assessSearchProgressWithFallback({
+            runSummary,
+            currentRound,
+            frontierState,
+            remainingBudget,
+            timeoutMs: typeof body.aiTimeoutMs === "number" ? body.aiTimeoutMs : 45000
+          });
+
+      sendJson(res, 200, {
+        message: "assess_search_progress completed",
+        request: {
+          runSummary,
+          currentRound,
+          frontierState,
+          remainingBudget,
+          modeRequested: mode
+        },
+        progressDecision
+      });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message || String(error) });
     }
     return;
   }

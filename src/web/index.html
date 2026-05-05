@@ -2494,9 +2494,7 @@
         const canReview = candidate.status === 'pending' || (reviewMode && candidate.status === 'rejected');
         const canContinue = candidate.status === 'approved' || candidate.status === 'submitted';
 
-        const flags = (candidate.riskFlags || [])
-          .filter((flag) => !String(flag || '').startsWith('already_exists_in_vetted:'))
-          .join(', ') || 'none';
+        const flags = (candidate.riskFlags || []).join(', ') || 'none';
         const reqMajors = candidate.inferredRequirements?.requiredMajors || candidate.eligibility?.allowedMajors || [];
         const reqEthnicities = candidate.inferredRequirements?.requiredEthnicities || candidate.eligibility?.allowedEthnicities || [];
         const reqStates = candidate.inferredRequirements?.requiredStates || [];

@@ -1,7 +1,26 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { runNoAccountMvp } from "../pipeline/runNoAccountMvp.js";
-import { loadScholarships } from "../data/scholarshipStore.js";
+import { candidateToScholarshipRecord, loadCandidates } from "../data/candidateStore.js";
+
+function candidatesToCanonicalScholarships(candidates = []) {
+  const rows = Array.isArray(candidates) ? candidates : [];
+  const seen = new Set();
+  const output = [];
+  for (const candidate of rows) {
+    if (!candidate || candidate.status === "rejected") continue;
+    const scholarship = candidateToScholarshipRecord(candidate);
+    const dedupeKeys = [
+      String(scholarship.id || "").toLowerCase(),
+      String(scholarship.sourceUrl || "").toLowerCase(),
+      `${String(scholarship.name || "").toLowerCase()}::${String(scholarship.sourceDomain || "").toLowerCase()}`
+    ].filter(Boolean);
+    if (dedupeKeys.some((key) => seen.has(key))) continue;
+    dedupeKeys.forEach((key) => seen.add(key));
+    output.push(scholarship);
+  }
+  return output;
+}
 
 function parseArgs(argv) {
   const args = {
@@ -42,11 +61,12 @@ function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const scholarships = candidatesToCanonicalScholarships(await loadCandidates({ forceReload: true }));
 
   const result = await runNoAccountMvp({
     sessionId: args.sessionId,
     documents: args.documents,
-    scholarships: await loadScholarships()
+    scholarships
   });
 
   const output = {
